@@ -13,9 +13,10 @@ public class FileManager {
     private FileConfiguration artefactosConfig, armadurasConfig, armasConfig, herramientasConfig, reforjasConfig, encantamientosConfig;
     private File artefactosFile, armadurasFile, armasFile, herramientasFile, reforjasFile, encantamientosFile;
 
-    // 🧠 CACHÉ EN RAM PARA ARMADURAS Y ARMAS
+    // 🧠 CACHÉ EN RAM PARA ARMADURAS, ARMAS Y HERRAMIENTAS
     private final ConcurrentHashMap<String, ArmorDTO> armorCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, WeaponDTO> weaponCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ToolDTO> toolCache = new ConcurrentHashMap<>();
 
     public FileManager(Main plugin) {
         this.plugin = plugin;
@@ -54,6 +55,7 @@ public class FileManager {
         // Cargamos los datos a la RAM
         cargarCacheArmaduras();
         cargarCacheArmas();
+        cargarCacheHerramientas();
     }
 
     private void cargarCacheArmaduras() {
@@ -94,7 +96,7 @@ public class FileManager {
                         armasConfig.getString(path + ".elemento", "FÍSICO"),
                         armasConfig.getInt(path + ".nivel_requerido", 1),
                         armasConfig.getDouble(path + ".danio_base", 5.0),
-                        armasConfig.getDouble(path + ".velocidad_ataque", 1.6), // 1.6 es el estándar vanilla de la espada
+                        armasConfig.getDouble(path + ".velocidad_ataque", 1.6),
                         armasConfig.getString(path + ".habilidad_id", "ninguna"),
                         armasConfig.getBoolean(path + ".prestigio.habilitado", false),
                         armasConfig.getDouble(path + ".prestigio.multiplicador", 0.1)
@@ -104,13 +106,30 @@ public class FileManager {
         }
     }
 
-    public ArmorDTO getArmorDTO(String id) {
-        return armorCache.get(id);
+    private void cargarCacheHerramientas() {
+        toolCache.clear();
+        if (herramientasConfig.contains("herramientas")) {
+            for (String key : herramientasConfig.getConfigurationSection("herramientas").getKeys(false)) {
+                String path = "herramientas." + key;
+                ToolDTO dto = new ToolDTO(
+                        key,
+                        herramientasConfig.getString(path + ".nombre", "Herramienta"),
+                        herramientasConfig.getString(path + ".rareza", "&7Común"),
+                        herramientasConfig.getString(path + ".profesion", "Minería"),
+                        herramientasConfig.getInt(path + ".tier", 1),
+                        herramientasConfig.getInt(path + ".nivel_requerido", 1),
+                        herramientasConfig.getDouble(path + ".velocidad_base", 1.0),
+                        herramientasConfig.getDouble(path + ".multiplicador_fortuna", 0.0),
+                        herramientasConfig.getString(path + ".habilidad_id", "ninguna")
+                );
+                toolCache.put(key, dto);
+            }
+        }
     }
 
-    public WeaponDTO getWeaponDTO(String id) {
-        return weaponCache.get(id);
-    }
+    public ArmorDTO getArmorDTO(String id) { return armorCache.get(id); }
+    public WeaponDTO getWeaponDTO(String id) { return weaponCache.get(id); }
+    public ToolDTO getToolDTO(String id) { return toolCache.get(id); }
 
     public FileConfiguration getArtefactos() { return artefactosConfig; }
     public FileConfiguration getArmaduras() { return armadurasConfig; }

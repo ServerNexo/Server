@@ -1,7 +1,11 @@
 package me.tunombre.server;
 
+import com.nexomc.nexo.api.NexoItems;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.Tool;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Tag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -21,8 +25,10 @@ public class ItemManager {
     public static NamespacedKey llaveArmaduraId;
     public static NamespacedKey llaveWeaponId;
     public static NamespacedKey llaveWeaponPrestige;
+    public static NamespacedKey llaveHerramientaId;
+    public static NamespacedKey llaveBloquesRotos;
 
-    // Llaves Antiguas de Armas (Las mantenemos por compatibilidad con viejos ítems si los hay)
+    // Llaves Antiguas de Armas (Las mantenemos por compatibilidad)
     public static NamespacedKey llaveArmaClase, llaveArmaReqCombate, llaveArmaDanioBase, llaveArmaMitica;
 
     public static Main pluginMemoria;
@@ -48,12 +54,80 @@ public class ItemManager {
         llaveArmaduraId = new NamespacedKey(plugin, "nexo_armadura_id");
         llaveWeaponId = new NamespacedKey(plugin, "nexo_weapon_id");
         llaveWeaponPrestige = new NamespacedKey(plugin, "nexo_weapon_prestige");
+        llaveHerramientaId = new NamespacedKey(plugin, "nexo_herramienta_id");
+        llaveBloquesRotos = new NamespacedKey(plugin, "nexo_bloques_rotos");
 
         // Compatibilidad armas viejas
         llaveArmaClase = new NamespacedKey(plugin, "nexo_arma_clase");
         llaveArmaReqCombate = new NamespacedKey(plugin, "nexo_arma_req_combate");
         llaveArmaDanioBase = new NamespacedKey(plugin, "nexo_arma_danio_base");
         llaveArmaMitica = new NamespacedKey(plugin, "nexo_arma_mitica");
+    }
+
+    // ==========================================
+    // ⛏️ FÁBRICA DE HERRAMIENTAS (NexoCore + Nexo RP)
+    // ==========================================
+    public static ItemStack generarHerramientaProfesion(String id_yml) {
+        ToolDTO dto = pluginMemoria.getFileManager().getToolDTO(id_yml);
+        if (dto == null) {
+            org.bukkit.Bukkit.getLogger().warning("¡No se encontró la herramienta " + id_yml + " en caché!");
+            return new ItemStack(Material.WOODEN_PICKAXE);
+        }
+
+        // 1. LEER EL ID DE NEXO DESDE EL YML (Si no existe, usar material de fallback)
+        String nexoId = pluginMemoria.getFileManager().getHerramientas().getString("herramientas." + id_yml + ".nexo_id");
+        ItemStack item;
+
+        try {
+            if (nexoId != null && NexoItems.itemFromId(nexoId) != null) {
+                // Obtenemos el ítem con su textura 3D directamente desde el plugin Nexo
+                item = NexoItems.itemFromId(nexoId).build();
+            } else {
+                String matString = pluginMemoria.getFileManager().getHerramientas().getString("herramientas." + id_yml + ".material", "IRON_PICKAXE");
+                Material mat = Material.matchMaterial(matString);
+                item = new ItemStack(mat != null ? mat : Material.IRON_PICKAXE);
+            }
+        } catch (NoClassDefFoundError e) {
+            // Esto ocurre si el plugin Nexo no está instalado en el servidor de pruebas
+            String matString = pluginMemoria.getFileManager().getHerramientas().getString("herramientas." + id_yml + ".material", "IRON_PICKAXE");
+            Material mat = Material.matchMaterial(matString);
+            item = new ItemStack(mat != null ? mat : Material.IRON_PICKAXE);
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        List<String> lore = new ArrayList<>();
+
+        meta.setDisplayName(org.bukkit.ChatColor.translateAlternateColorCodes('&', dto.nombre()));
+
+        lore.add(org.bukkit.ChatColor.translateAlternateColorCodes('&', dto.rareza()));
+        lore.add("§7Profesión: " + dto.profesion());
+        lore.add("§7Tier: " + dto.tier());
+        lore.add("");
+        lore.add("§7Velocidad Base: §e+" + dto.velocidadBase());
+        lore.add("§7Bonus Drops: §b+" + dto.multiplicadorFortuna() + "%");
+        lore.add("");
+        lore.add("§7Bloques Rotos: §e0"); // El PDC se encarga de actualizar esto al romper
+        lore.add("");
+        lore.add("§fRequisito de " + dto.profesion() + ": Nivel " + dto.nivelRequerido());
+
+        meta.setLore(lore);
+        meta.setUnbreakable(true);
+
+        // Inyección PDC
+        meta.getPersistentDataContainer().set(llaveHerramientaId, PersistentDataType.STRING, dto.id());
+        meta.getPersistentDataContainer().set(llaveBloquesRotos, PersistentDataType.INTEGER, 0);
+        item.setItemMeta(meta);
+
+        // 🚀 MAGIA DE PAPER 1.21: Taladros = Pico + Pala simultáneamente
+        if (dto.esTaladro()) {
+            Tool.Rule shovelRule = Tool.Rule.mineables(Tag.MINEABLE_SHOVEL, (float) dto.velocidadBase(), true);
+            Tool.Rule pickaxeRule = Tool.Rule.mineables(Tag.MINEABLE_PICKAXE, (float) dto.velocidadBase(), true);
+
+            Tool toolComponent = Tool.tool(List.of(shovelRule, pickaxeRule), 1.0f, 1);
+            item.setData(DataComponentTypes.TOOL, toolComponent);
+        }
+
+        return item;
     }
 
     // ==========================================
@@ -66,7 +140,6 @@ public class ItemManager {
             return new ItemStack(Material.WOODEN_SWORD);
         }
 
-        // Leer el material del YML
         String matString = pluginMemoria.getFileManager().getArmas().getString("armas_rpg." + id_yml + ".material", "IRON_SWORD");
         Material mat = Material.matchMaterial(matString);
         if (mat == null) mat = Material.IRON_SWORD;
@@ -75,10 +148,8 @@ public class ItemManager {
         ItemMeta meta = item.getItemMeta();
         List<String> lore = new ArrayList<>();
 
-        // Nombre y Color
         meta.setDisplayName(org.bukkit.ChatColor.translateAlternateColorCodes('&', dto.nombre()) + " §8[§e+0§8]");
 
-        // Lore RPG
         lore.add("§7Clase: " + dto.claseRequerida());
         lore.add("§7Elemento: " + org.bukkit.ChatColor.translateAlternateColorCodes('&', dto.elemento()));
         lore.add("");
@@ -95,30 +166,22 @@ public class ItemManager {
         meta.setLore(lore);
         meta.setUnbreakable(true);
 
-        // 🚀 INYECCIÓN DE DATOS (PDC)
         meta.getPersistentDataContainer().set(llaveWeaponId, PersistentDataType.STRING, dto.id());
-        meta.getPersistentDataContainer().set(llaveWeaponPrestige, PersistentDataType.INTEGER, 0); // Empieza en prestigio 0
+        meta.getPersistentDataContainer().set(llaveWeaponPrestige, PersistentDataType.INTEGER, 0);
 
-        // ==========================================
-        // ⚙️ MANIPULACIÓN DE ATRIBUTOS NATIVOS 1.21.11
-        // ==========================================
-
-        // 1. Daño
+        // Atributos Nativos 1.21.11
         NamespacedKey dmgKey = new NamespacedKey(pluginMemoria, "nexo_dmg_" + dto.id());
         org.bukkit.attribute.AttributeModifier dmgMod = new org.bukkit.attribute.AttributeModifier(
                 dmgKey, dto.danioBase(), org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER, org.bukkit.inventory.EquipmentSlotGroup.MAINHAND);
         meta.addAttributeModifier(org.bukkit.attribute.Attribute.GENERIC_ATTACK_DAMAGE, dmgMod);
 
-        // 2. Velocidad de Ataque (La base de Minecraft es 4.0. Si queremos 1.2, restamos 2.8)
         NamespacedKey spdKey = new NamespacedKey(pluginMemoria, "nexo_spd_" + dto.id());
         double speedOffset = dto.velocidadAtaque() - 4.0;
         org.bukkit.attribute.AttributeModifier spdMod = new org.bukkit.attribute.AttributeModifier(
                 spdKey, speedOffset, org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER, org.bukkit.inventory.EquipmentSlotGroup.MAINHAND);
         meta.addAttributeModifier(org.bukkit.attribute.Attribute.GENERIC_ATTACK_SPEED, spdMod);
 
-        // Ocultar atributos vanilla feos (El clásico "+7 Daño de ataque" verde de Minecraft)
         meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
-
         item.setItemMeta(meta);
         return item;
     }
@@ -181,19 +244,13 @@ public class ItemManager {
         meta.setLore(lore);
         meta.setUnbreakable(true);
 
-        // 🚀 INYECCIÓN DEL ID MAESTRO
         meta.getPersistentDataContainer().set(llaveArmaduraId, PersistentDataType.STRING, dto.id());
-
-        // Compatibilidad con sistemas viejos
         if (dto.vidaExtra() > 0) meta.getPersistentDataContainer().set(llaveVidaExtra, PersistentDataType.DOUBLE, dto.vidaExtra());
 
         item.setItemMeta(meta);
         return item;
     }
 
-    // ==========================================
-    // ⚙️ ARTEFACTOS Y MATERIALES
-    // ==========================================
     public static ItemStack crearPolvoEstelar() {
         ItemStack item = new ItemStack(Material.GLOWSTONE_DUST);
         ItemMeta meta = item.getItemMeta();
