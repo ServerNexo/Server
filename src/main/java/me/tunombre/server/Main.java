@@ -75,7 +75,12 @@ public class Main extends JavaPlugin {
                     manaActual = Math.min(manaActual + 15, maxMana);
                 }
 
-                String hud = "§b💧 Maná: " + manaActual + "/" + maxMana + "   §e⚡ Energía: " + energiaActual + "/" + maxEnergia;
+                // Obtenemos la vida real del jugador para mostrarla
+                int hpActual = (int) Math.ceil(p.getHealth());
+                int hpMax = (int) p.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue();
+
+                // Dibujar el HUD completo
+                String hud = "§c❤ " + hpActual + "/" + hpMax + "  §b💧 " + manaActual + "/" + maxMana + "  §e⚡ " + energiaActual + "/" + maxEnergia;
                 p.sendActionBar(hud);
             }
         }, 20L, 20L);

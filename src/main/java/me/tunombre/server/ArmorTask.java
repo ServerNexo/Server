@@ -25,17 +25,35 @@ public class ArmorTask extends BukkitRunnable {
             double velMineria = 0;
             double velMovimiento = 0;
 
-            String claseJugador = plugin.claseJugador.getOrDefault(p.getUniqueId(), "Aventurero");
+            String claseDominante = "Cualquiera";
 
             // ==========================================
-            // 1. ESCANEAR ARMADURA DESDE LA RAM
+            // 1. DETECTAR CLASE DOMINANTE
+            // ==========================================
+            // Buscamos la primera pieza de armadura que tenga una clase específica
+            for (ItemStack item : armor) {
+                if (item == null || !item.hasItemMeta()) continue;
+                var pdc = item.getItemMeta().getPersistentDataContainer();
+                if (pdc.has(ItemManager.llaveArmaduraId, PersistentDataType.STRING)) {
+                    ArmorDTO dto = plugin.getFileManager().getArmorDTO(pdc.get(ItemManager.llaveArmaduraId, PersistentDataType.STRING));
+                    if (dto != null && !dto.claseRequerida().equalsIgnoreCase("Cualquiera") && !dto.claseRequerida().equalsIgnoreCase("Ninguna")) {
+                        claseDominante = dto.claseRequerida();
+                        break; // ¡Encontramos la clase del jugador!
+                    }
+                }
+            }
+
+            // Guardamos la clase en la RAM para que las armas sepan qué eres
+            plugin.claseJugador.put(p.getUniqueId(), claseDominante);
+
+            // ==========================================
+            // 2. APLICAR STATS Y RESTRICCIONES
             // ==========================================
             for (int i = 0; i < armor.length; i++) {
                 ItemStack item = armor[i];
                 if (item == null || !item.hasItemMeta()) continue;
                 var pdc = item.getItemMeta().getPersistentDataContainer();
 
-                // 🚀 NUEVO SISTEMA (Lee del ArmorDTO)
                 if (pdc.has(ItemManager.llaveArmaduraId, PersistentDataType.STRING)) {
                     String id = pdc.get(ItemManager.llaveArmaduraId, PersistentDataType.STRING);
                     ArmorDTO dto = plugin.getFileManager().getArmorDTO(id);
@@ -43,34 +61,35 @@ public class ArmorTask extends BukkitRunnable {
                     if (dto != null) {
                         boolean cumpleRequisitos = true;
 
-                        // Restricción de Clase
+                        // A) REVISAR CHOQUE DE CLASES
                         if (!dto.claseRequerida().equalsIgnoreCase("Cualquiera") &&
                                 !dto.claseRequerida().equalsIgnoreCase("Ninguna") &&
-                                !dto.claseRequerida().equalsIgnoreCase(claseJugador)) {
-                            quitarArmadura(p, item, i, "Clase (" + dto.claseRequerida() + ")", dto.nivelRequerido());
+                                !dto.claseRequerida().equalsIgnoreCase(claseDominante)) {
+
+                            quitarArmadura(p, item, i, "Choque de Clases (" + dto.claseRequerida() + ")");
                             cumpleRequisitos = false;
                         }
 
-                        // Restricciones AuraSkills / Combate
+                        // B) REVISAR NIVEL DE AURASKILLS
                         if (cumpleRequisitos) {
                             int nivelJugador = 1;
                             String skill = dto.skillRequerida();
 
                             try {
-                                if (skill.equalsIgnoreCase("Combate")) nivelJugador = plugin.combateNiveles.getOrDefault(p.getUniqueId(), 1);
-                                else if (skill.equalsIgnoreCase("Minería")) nivelJugador = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.MINING));
-                                else if (skill.equalsIgnoreCase("Agricultura")) nivelJugador = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FARMING));
-                                else if (skill.equalsIgnoreCase("Pesca")) nivelJugador = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FISHING));
-                                else if (skill.equalsIgnoreCase("Tala")) nivelJugador = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FORAGING));
+                                if (skill.equalsIgnoreCase("Combate")) nivelJugador = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FIGHTING));
+                                else if (skill.equalsIgnoreCase("Minería")) nivelJugador = Math.max(1, (int) AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.MINING));
+                                else if (skill.equalsIgnoreCase("Agricultura")) nivelJugador = Math.max(1, (int) AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FARMING));
+                                else if (skill.equalsIgnoreCase("Pesca")) nivelJugador = Math.max(1, (int) AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FISHING));
+                                else if (skill.equalsIgnoreCase("Tala")) nivelJugador = Math.max(1, (int) AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FORAGING));
                             } catch (Exception ignored) {}
 
                             if (nivelJugador < dto.nivelRequerido()) {
-                                quitarArmadura(p, item, i, skill, dto.nivelRequerido());
+                                quitarArmadura(p, item, i, skill + " Nv." + dto.nivelRequerido());
                                 cumpleRequisitos = false;
                             }
                         }
 
-                        // Si cumple, damos las Stats del DTO
+                        // Si todo es legal, sumamos las stats
                         if (cumpleRequisitos) {
                             extraVida += dto.vidaExtra();
                             velMineria += dto.velocidadMineria();
@@ -78,18 +97,21 @@ public class ArmorTask extends BukkitRunnable {
                         }
                     }
                 }
-                // 🛡️ SISTEMA ANTIGUO (Por si usas armaduras vanilla con llave de vida)
                 else if (pdc.has(ItemManager.llaveVidaExtra, PersistentDataType.DOUBLE)) {
                     extraVida += pdc.get(ItemManager.llaveVidaExtra, PersistentDataType.DOUBLE);
                 }
             }
 
             // ==========================================
-            // 2. APLICAR VIDA Y EFECTOS
+            // 3. APLICAR VIDA Y EFECTOS FINALES
             // ==========================================
             double total = 20.0 + extraVida;
             if (p.getAttribute(Attribute.GENERIC_MAX_HEALTH).getBaseValue() != total) {
                 p.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(total);
+
+                // ¡LA MAGIA ANTI-PANTALLA LLENA!
+                p.setHealthScaled(true);
+                p.setHealthScale(20.0); // Siempre dibuja solo 10 corazones (20.0 visual)
             }
 
             if (velMineria > 0) {
@@ -103,14 +125,14 @@ public class ArmorTask extends BukkitRunnable {
         }
     }
 
-    private void quitarArmadura(Player p, ItemStack item, int slotIndex, String limitante, int nivelRequerido) {
+    private void quitarArmadura(Player p, ItemStack item, int slotIndex, String razon) {
         p.getInventory().addItem(item);
         if(slotIndex == 0) p.getInventory().setBoots(null);
         if(slotIndex == 1) p.getInventory().setLeggings(null);
         if(slotIndex == 2) p.getInventory().setChestplate(null);
         if(slotIndex == 3) p.getInventory().setHelmet(null);
 
-        p.sendMessage("§c§l⚠ NO ERES DIGNO §7| Requisito: §e" + limitante + " Nv." + nivelRequerido);
+        p.sendMessage("§c§l⚠ NO ERES DIGNO §7| Requisito: §e" + razon);
         p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
     }
 }

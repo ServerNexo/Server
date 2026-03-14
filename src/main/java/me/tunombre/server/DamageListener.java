@@ -1,5 +1,7 @@
 package me.tunombre.server;
 
+import dev.aurelium.auraskills.api.AuraSkillsApi;
+import dev.aurelium.auraskills.api.skill.Skills;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.LivingEntity;
@@ -29,8 +31,15 @@ public class DamageListener implements Listener {
 
             var pdc = arma.getItemMeta().getPersistentDataContainer();
             double dañoReal = event.getDamage();
-            String claseJugador = plugin.claseJugador.getOrDefault(jugador.getUniqueId(), "Aventurero");
-            int nivelCombate = plugin.combateNiveles.getOrDefault(jugador.getUniqueId(), 1);
+
+            // Leemos la clase dinámica que generó el ArmorTask
+            String claseJugador = plugin.claseJugador.getOrDefault(jugador.getUniqueId(), "Cualquiera");
+
+            // Leemos el nivel oficial de AuraSkills
+            int nivelCombate = 1;
+            try {
+                nivelCombate = Math.max(1, AuraSkillsApi.get().getUser(jugador.getUniqueId()).getSkillLevel(Skills.FIGHTING));
+            } catch (Exception ignored) {}
 
             // ==========================================
             // 1. REQUISITOS DE CLASE Y NIVEL
@@ -38,7 +47,7 @@ public class DamageListener implements Listener {
             if (pdc.has(ItemManager.llaveArmaClase, PersistentDataType.STRING)) {
                 String claseArma = pdc.get(ItemManager.llaveArmaClase, PersistentDataType.STRING);
                 if (!claseArma.equalsIgnoreCase(claseJugador) && !claseArma.equalsIgnoreCase("Cualquiera")) {
-                    jugador.sendMessage("§c§l⚠ §cEsta arma es muy pesada/compleja para tu clase.");
+                    jugador.sendMessage("§c§l⚠ §cTu armadura no es compatible con el estilo de combate de esta arma.");
                     jugador.playSound(jugador.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
                     event.setDamage(1.0);
                     return;
@@ -68,7 +77,7 @@ public class DamageListener implements Listener {
                 dañoReal += (dañoReal * (nivelHerreria * 0.10));
             }
 
-            // Escalado por Nivel de Combate (+2% por nivel)
+            // Escalado por Nivel de Combate (+2% por nivel de AuraSkills)
             dañoReal += (dañoReal * (nivelCombate * 0.02));
 
             // Bono Arma Mítica
@@ -92,7 +101,7 @@ public class DamageListener implements Listener {
                         if (nombreMob.contains("[RAYO]")) multiplicador = 0.5;
                         break;
                     case "HIELO":
-                        victima.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 1));
+                        victima.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 1, false, false, false));
                         if (nombreMob.contains("[VENENO]")) multiplicador = 2.0;
                         if (nombreMob.contains("[FUEGO]")) multiplicador = 0.5;
                         break;
@@ -102,7 +111,7 @@ public class DamageListener implements Listener {
                         if (nombreMob.contains("[VENENO]")) multiplicador = 0.5;
                         break;
                     case "VENENO":
-                        victima.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 80, 1));
+                        victima.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 80, 1, false, false, false));
                         if (nombreMob.contains("[RAYO]")) multiplicador = 2.0;
                         if (nombreMob.contains("[HIELO]")) multiplicador = 0.5;
                         break;
