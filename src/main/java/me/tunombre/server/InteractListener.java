@@ -1,23 +1,31 @@
 package me.tunombre.server;
 
-import org.bukkit.ChatColor;
+import dev.aurelium.auraskills.api.AuraSkillsApi;
+import dev.aurelium.auraskills.api.skill.Skills;
+import dev.aurelium.auraskills.api.user.SkillsUser;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.entity.Fireball;
+import org.bukkit.entity.Arrow;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.util.Vector;
 
+import java.util.HashMap;
 import java.util.UUID;
 
 public class InteractListener implements Listener {
 
     private final Main plugin;
+    // ⏳ Memoria RAM para Cooldowns: "UUID-Habilidad" -> Tiempo en Milisegundos
+    private final HashMap<String, Long> cooldowns = new HashMap<>();
 
     public InteractListener(Main plugin) {
         this.plugin = plugin;
@@ -28,72 +36,123 @@ public class InteractListener implements Listener {
         Player jugador = event.getPlayer();
 
         if (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-
             ItemStack item = jugador.getInventory().getItemInMainHand();
             if (item.getType() == Material.AIR || !item.hasItemMeta()) return;
-            if (item.getItemMeta().getDisplayName() == null) return;
 
-            String nombre = item.getItemMeta().getDisplayName();
+            var pdc = item.getItemMeta().getPersistentDataContainer();
             UUID uuid = jugador.getUniqueId();
 
             // ==========================================
-            // 1. ARTEFACTO: HOJA DEL VACÍO (Usa ENERGÍA ⚡)
+            // 🔮 SISTEMA DE HABILIDADES ACTIVAS
             // ==========================================
-            if (nombre.contains("Hoja del Vacío")) {
-                event.setCancelled(true);
-                int energiaActual = plugin.energiaMineria.getOrDefault(uuid, 100);
-                int costoTeleport = 40;
+            if (pdc.has(ItemManager.llaveWeaponId, PersistentDataType.STRING)) {
+                String idArma = pdc.get(ItemManager.llaveWeaponId, PersistentDataType.STRING);
+                WeaponDTO dto = plugin.getFileManager().getWeaponDTO(idArma);
 
-                if (energiaActual >= costoTeleport) {
-                    plugin.energiaMineria.put(uuid, energiaActual - costoTeleport);
-                    Location origen = jugador.getLocation();
-                    Location destino = origen.clone().add(origen.getDirection().multiply(8));
-                    destino.setYaw(origen.getYaw()); destino.setPitch(origen.getPitch());
-                    jugador.teleport(destino);
-                    jugador.playSound(jugador.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1f);
-                    jugador.getWorld().spawnParticle(Particle.PORTAL, origen, 50);
-                    jugador.getWorld().spawnParticle(Particle.PORTAL, destino, 50);
-                } else {
-                    jugador.sendMessage("§e§l⚠ NO TIENES SUFICIENTE ENERGÍA");
-                    jugador.playSound(jugador.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
+                if (dto != null && !dto.habilidadId().equalsIgnoreCase("ninguna")) {
+                    event.setCancelled(true); // Para no interactuar con bloques (ej. puertas)
+
+                    // 1. Validar que tiene nivel para usarla
+                    int nivelCombate = 1;
+                    try {
+                        nivelCombate = Math.max(1, AuraSkillsApi.get().getUser(uuid).getSkillLevel(Skills.FIGHTING));
+                    } catch (Exception ignored) {}
+                    if (nivelCombate < dto.nivelRequerido()) return;
+
+                    // 2. SISTEMA DE COOLDOWN (5 Segundos por defecto)
+                    String cdKey = uuid.toString() + "-" + dto.habilidadId();
+                    long tiempoActual = System.currentTimeMillis();
+                    int tiempoCooldown = 5000;
+
+                    if (cooldowns.containsKey(cdKey)) {
+                        long tiempoRestante = (cooldowns.get(cdKey) + tiempoCooldown) - tiempoActual;
+                        if (tiempoRestante > 0) {
+                            jugador.sendActionBar("§c§l⏳ Enfriamiento: §e" + (tiempoRestante / 1000) + "s");
+                            return;
+                        }
+                    }
+
+                    // 3. CONSUMO DE MANÁ (AuraSkills)
+                    int costoMana = 30; // Podemos ajustarlo por habilidad luego
+                    SkillsUser user = AuraSkillsApi.get().getUser(uuid);
+                    if (user != null) {
+                        if (user.getMana() < costoMana) {
+                            jugador.sendMessage("§b§l⚠ NO TIENES SUFICIENTE MANÁ §7(" + costoMana + ")");
+                            jugador.playSound(jugador.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
+                            return;
+                        }
+                        user.setMana(user.getMana() - costoMana);
+                    }
+
+                    // 4. EJECUTAR PODER
+                    cooldowns.put(cdKey, tiempoActual);
+                    ejecutarHabilidad(jugador, dto.habilidadId());
                 }
-                return; // Cortamos aquí para que no ejecute lo demás
             }
+        }
+    }
 
-            // ==========================================
-            // 2. HABILIDADES DE COMBATE (Usan MANÁ 💧)
-            // ==========================================
-            if (item.getItemMeta().hasLore()) {
-                boolean esMago = false;
-                for (String linea : item.getItemMeta().getLore()) {
-                    if (ChatColor.stripColor(linea).contains("Clase: Mago")) esMago = true;
-                }
+    // ==========================================
+    // ⚡ DICCIONARIO DE PODERES
+    // ==========================================
+    private void ejecutarHabilidad(Player p, String habilidad) {
+        switch (habilidad.toLowerCase()) {
 
-                // HABILIDAD DE MAGO: EXPLOSIÓN DE FUEGO
-                if (esMago && nombre.contains("Báculo")) {
-                    event.setCancelled(true);
-
-                    int nivelCombate = plugin.combateNiveles.getOrDefault(uuid, 1);
-                    int maxMana = 100 + (nivelCombate * 10);
-                    int manaActual = plugin.manaJugador.getOrDefault(uuid, maxMana);
-                    int costoMana = 50; // Cuesta 50 de Maná lanzar un hechizo
-
-                    if (manaActual >= costoMana) {
-                        plugin.manaJugador.put(uuid, manaActual - costoMana);
-
-                        // Lanzamos la bola de fuego
-                        Fireball bolaFuego = jugador.launchProjectile(Fireball.class);
-                        bolaFuego.setYield(2.0F); // Tamaño de la explosión (2.0 es seguro, no rompe mucho si desactivas el daño a bloques)
-                        bolaFuego.setIsIncendiary(false); // Para no prender fuego a tu bosque por accidente
-
-                        jugador.playSound(jugador.getLocation(), Sound.ENTITY_GHAST_SHOOT, 1f, 1f);
-
-                    } else {
-                        jugador.sendMessage("§b§l⚠ NO TIENES SUFICIENTE MANÁ");
-                        jugador.playSound(jugador.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 1f);
+            case "quake":
+                p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1f, 0.5f);
+                p.getWorld().spawnParticle(Particle.EXPLOSION, p.getLocation(), 1);
+                // Daña en área y levanta a los enemigos
+                for (org.bukkit.entity.Entity e : p.getNearbyEntities(4, 2, 4)) {
+                    if (e instanceof LivingEntity victima && e != p) {
+                        victima.damage(10.0, p);
+                        victima.setVelocity(new Vector(0, 0.6, 0));
                     }
                 }
-            }
+                p.sendMessage("§6§l¡TERREMOTO!");
+                break;
+
+            case "ola":
+                p.playSound(p.getLocation(), Sound.ENTITY_DOLPHIN_SPLASH, 1f, 1f);
+                Vector direccion = p.getLocation().getDirection().multiply(1.5);
+                for (org.bukkit.entity.Entity e : p.getNearbyEntities(6, 6, 6)) {
+                    if (e instanceof LivingEntity victima && e != p) {
+                        // Solo empuja si están al frente del jugador
+                        Vector dirAlEnemigo = victima.getLocation().toVector().subtract(p.getLocation().toVector()).normalize();
+                        if (p.getLocation().getDirection().dot(dirAlEnemigo) > 0.5) {
+                            victima.damage(5.0, p);
+                            victima.setVelocity(direccion);
+                        }
+                    }
+                }
+                p.getWorld().spawnParticle(Particle.SPLASH, p.getLocation().add(0,1,0), 100, 0.5, 0.5, 0.5, 0.1);
+                p.sendMessage("§9§l¡OLA CHOCANTE!");
+                break;
+
+            case "rafaga":
+                p.playSound(p.getLocation(), Sound.ENTITY_ARROW_SHOOT, 1f, 1f);
+                // Lanza 3 flechas con un delay usando el reloj del servidor
+                for (int i = 0; i < 3; i++) {
+                    org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        Arrow flecha = p.launchProjectile(Arrow.class);
+                        flecha.setVelocity(p.getLocation().getDirection().multiply(2.0));
+                    }, i * 4L); // Retraso de 4 ticks entre cada flecha
+                }
+                p.sendMessage("§f§l¡RÁFAGA DE VIENTO!");
+                break;
+
+            case "traslacion":
+                Location destino = p.getLocation().clone().add(p.getLocation().getDirection().multiply(6));
+                p.getWorld().spawnParticle(Particle.PORTAL, p.getLocation(), 50);
+                p.teleport(destino);
+                p.playSound(p.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1f);
+                p.sendMessage("§8§l¡TRASLACIÓN!");
+                break;
+
+            default:
+                // Mensaje genérico para habilidades aún no programadas
+                p.sendMessage("§e✨ Habilidad: §f" + habilidad.toUpperCase());
+                p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 1f);
+                break;
         }
     }
 }

@@ -13,8 +13,9 @@ public class FileManager {
     private FileConfiguration artefactosConfig, armadurasConfig, armasConfig, herramientasConfig, reforjasConfig, encantamientosConfig;
     private File artefactosFile, armadurasFile, armasFile, herramientasFile, reforjasFile, encantamientosFile;
 
-    // 🧠 CACHÉ EN RAM PARA ARMADURAS
+    // 🧠 CACHÉ EN RAM PARA ARMADURAS Y ARMAS
     private final ConcurrentHashMap<String, ArmorDTO> armorCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, WeaponDTO> weaponCache = new ConcurrentHashMap<>();
 
     public FileManager(Main plugin) {
         this.plugin = plugin;
@@ -50,8 +51,9 @@ public class FileManager {
         if (!encantamientosFile.exists()) plugin.saveResource("encantamientos.yml", false);
         encantamientosConfig = YamlConfiguration.loadConfiguration(encantamientosFile);
 
-        // Cargamos las armaduras a la RAM
+        // Cargamos los datos a la RAM
         cargarCacheArmaduras();
+        cargarCacheArmas();
     }
 
     private void cargarCacheArmaduras() {
@@ -79,8 +81,35 @@ public class FileManager {
         }
     }
 
+    private void cargarCacheArmas() {
+        weaponCache.clear();
+        if (armasConfig.contains("armas_rpg")) {
+            for (String key : armasConfig.getConfigurationSection("armas_rpg").getKeys(false)) {
+                String path = "armas_rpg." + key;
+                WeaponDTO dto = new WeaponDTO(
+                        key,
+                        armasConfig.getString(path + ".nombre", "Arma"),
+                        armasConfig.getInt(path + ".tier", 1),
+                        armasConfig.getString(path + ".clase", "Cualquiera"),
+                        armasConfig.getString(path + ".elemento", "FÍSICO"),
+                        armasConfig.getInt(path + ".nivel_requerido", 1),
+                        armasConfig.getDouble(path + ".danio_base", 5.0),
+                        armasConfig.getDouble(path + ".velocidad_ataque", 1.6), // 1.6 es el estándar vanilla de la espada
+                        armasConfig.getString(path + ".habilidad_id", "ninguna"),
+                        armasConfig.getBoolean(path + ".prestigio.habilitado", false),
+                        armasConfig.getDouble(path + ".prestigio.multiplicador", 0.1)
+                );
+                weaponCache.put(key, dto);
+            }
+        }
+    }
+
     public ArmorDTO getArmorDTO(String id) {
         return armorCache.get(id);
+    }
+
+    public WeaponDTO getWeaponDTO(String id) {
+        return weaponCache.get(id);
     }
 
     public FileConfiguration getArtefactos() { return artefactosConfig; }

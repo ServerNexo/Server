@@ -11,13 +11,18 @@ import java.util.List;
 
 public class ItemManager {
 
+    // Llaves Universales y Materiales
     public static NamespacedKey llaveNivelMejora, llaveMaterialMejora, llaveVidaExtra, llaveElemento, llaveSoulbound;
 
-    // Antiguas Profesiones (Las conservamos por si acaso)
+    // Llaves Antiguas (Profesiones/Stats)
     public static NamespacedKey llaveSuerteMinera, llaveVelocidadMineria, llaveSuerteAgricola, llaveVelocidadMovimiento, llaveSuerteTala, llaveFuerzaHacha, llaveVelocidadPesca, llaveCriaturaMarina;
 
-    // 🚀 NUEVAS LLAVES OPTIMIZADAS
-    public static NamespacedKey llaveArmaduraId; // Conecta con el ArmorDTO
+    // 🚀 NUEVAS LLAVES DTO OPTIMIZADAS
+    public static NamespacedKey llaveArmaduraId;
+    public static NamespacedKey llaveWeaponId;
+    public static NamespacedKey llaveWeaponPrestige;
+
+    // Llaves Antiguas de Armas (Las mantenemos por compatibilidad con viejos ítems si los hay)
     public static NamespacedKey llaveArmaClase, llaveArmaReqCombate, llaveArmaDanioBase, llaveArmaMitica;
 
     public static Main pluginMemoria;
@@ -39,102 +44,87 @@ public class ItemManager {
         llaveVelocidadPesca = new NamespacedKey(plugin, "nexo_velocidad_pesca");
         llaveCriaturaMarina = new NamespacedKey(plugin, "nexo_criatura_marina");
 
-        // Nuevas
+        // DTOs
         llaveArmaduraId = new NamespacedKey(plugin, "nexo_armadura_id");
+        llaveWeaponId = new NamespacedKey(plugin, "nexo_weapon_id");
+        llaveWeaponPrestige = new NamespacedKey(plugin, "nexo_weapon_prestige");
+
+        // Compatibilidad armas viejas
         llaveArmaClase = new NamespacedKey(plugin, "nexo_arma_clase");
         llaveArmaReqCombate = new NamespacedKey(plugin, "nexo_arma_req_combate");
         llaveArmaDanioBase = new NamespacedKey(plugin, "nexo_arma_danio_base");
         llaveArmaMitica = new NamespacedKey(plugin, "nexo_arma_mitica");
     }
 
-    private static int getNivelRequerido(int tier) {
-        switch (tier) {
-            case 1: return 1; case 2: return 10; case 3: return 25;
-            case 4: return 40; case 5: return 50; default: return 1;
-        }
-    }
-
-    private static String getRarezaYColor(int tier) {
-        switch (tier) {
-            case 1: return "§7COMÚN"; case 2: return "§bRARO"; case 3: return "§eÉPICO";
-            case 4: return "§4MÍTICO"; case 5: return "§6LEGENDARIO"; default: return "§7COMÚN";
-        }
-    }
-
     // ==========================================
-    // FÁBRICA DE ARMAS (AHORA USA PDC)
+    // ⚔️ FÁBRICA DATA-DRIVEN (ARMAS RPG 1.21)
     // ==========================================
-    public static ItemStack generarArma(String clase, String elemento, int tier) {
-        Material mat = Material.WOODEN_SWORD;
-        int dañoBase = 10 * tier * tier;
-        String nombre = "Arma";
-
-        switch (clase.toUpperCase()) {
-            case "MAGO":    mat = Material.BLAZE_ROD; nombre = "Báculo"; break;
-            case "TANQUE":  mat = Material.MACE; nombre = "Maza Pesada"; break;
-            case "PALADIN": mat = Material.TRIDENT; nombre = "Lanza Sagrada"; break;
-            case "ARQUERO": mat = Material.BOW; nombre = "Arco Largo"; break;
-            default:        mat = Material.IRON_SWORD; nombre = "Espada"; break;
+    public static ItemStack generarArmaRPG(String id_yml) {
+        WeaponDTO dto = pluginMemoria.getFileManager().getWeaponDTO(id_yml);
+        if (dto == null) {
+            org.bukkit.Bukkit.getLogger().warning("¡No se encontró el arma " + id_yml + " en caché!");
+            return new ItemStack(Material.WOODEN_SWORD);
         }
 
-        String colorElemento = "§f"; String iconoElemento = "";
-        switch (elemento.toUpperCase()) {
-            case "FUEGO":  colorElemento = "§c"; iconoElemento = "🔥"; nombre += " Ígneo"; break;
-            case "HIELO":  colorElemento = "§b"; iconoElemento = "❄"; nombre += " Glacial"; break;
-            case "RAYO":   colorElemento = "§e"; iconoElemento = "⚡"; nombre += " del Trueno"; break;
-            case "VENENO": colorElemento = "§2"; iconoElemento = "☠"; nombre += " Tóxico"; break;
-        }
+        // Leer el material del YML
+        String matString = pluginMemoria.getFileManager().getArmas().getString("armas_rpg." + id_yml + ".material", "IRON_SWORD");
+        Material mat = Material.matchMaterial(matString);
+        if (mat == null) mat = Material.IRON_SWORD;
 
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         List<String> lore = new ArrayList<>();
 
-        lore.add("§7Clase: " + clase);
-        lore.add("§7Daño Base: §c" + dañoBase);
-        lore.add("§7Elemento: " + colorElemento + elemento + " " + iconoElemento);
+        // Nombre y Color
+        meta.setDisplayName(org.bukkit.ChatColor.translateAlternateColorCodes('&', dto.nombre()) + " §8[§e+0§8]");
+
+        // Lore RPG
+        lore.add("§7Clase: " + dto.claseRequerida());
+        lore.add("§7Elemento: " + org.bukkit.ChatColor.translateAlternateColorCodes('&', dto.elemento()));
         lore.add("");
-        lore.add("§fRequisito de Combate: Nivel " + getNivelRequerido(tier));
+        lore.add("§7Daño Base: §c" + dto.danioBase() + " ⚔");
+        lore.add("§7Velocidad: §e" + dto.velocidadAtaque() + " ⚡");
         lore.add("");
-        lore.add(getRarezaYColor(tier));
 
-        meta.setLore(lore);
-        meta.setDisplayName(colorElemento + nombre + " §8[§e+0§8]");
-        meta.setUnbreakable(true);
-
-        // 🚀 INYECCIÓN DE DATOS SEGUROS
-        meta.getPersistentDataContainer().set(llaveNivelMejora, PersistentDataType.INTEGER, 0);
-        meta.getPersistentDataContainer().set(llaveElemento, PersistentDataType.STRING, elemento.toUpperCase());
-        meta.getPersistentDataContainer().set(llaveArmaClase, PersistentDataType.STRING, clase);
-        meta.getPersistentDataContainer().set(llaveArmaDanioBase, PersistentDataType.DOUBLE, (double) dañoBase);
-        meta.getPersistentDataContainer().set(llaveArmaReqCombate, PersistentDataType.INTEGER, getNivelRequerido(tier));
-
-        if (tier >= 4) {
-            meta.getPersistentDataContainer().set(llaveArmaMitica, PersistentDataType.BYTE, (byte) 1);
+        if (!dto.habilidadId().equalsIgnoreCase("ninguna")) {
+            lore.add("§6✦ Habilidad: §f" + dto.habilidadId().toUpperCase() + " §e§l(CLIC DERECHO)");
+            lore.add("");
         }
 
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    // (generarArmadura normal queda intacto por ahora)
-    public static ItemStack generarArmadura(String clase, String elemento, int tier) {
-        Material mat = Material.LEATHER_CHESTPLATE;
-        double vidaExtra = 5.0 * tier;
-        String nombre = "Armadura";
-
-        // ... (Tu código actual de generarArmadura)
-        ItemStack item = new ItemStack(mat);
-        ItemMeta meta = item.getItemMeta();
-        meta.setDisplayName(nombre + " §8[§e+0§8]");
+        lore.add("§fRequisito de Combate: Nivel " + dto.nivelRequerido());
+        meta.setLore(lore);
         meta.setUnbreakable(true);
-        meta.getPersistentDataContainer().set(llaveVidaExtra, PersistentDataType.DOUBLE, vidaExtra);
-        meta.getPersistentDataContainer().set(llaveNivelMejora, PersistentDataType.INTEGER, 0);
+
+        // 🚀 INYECCIÓN DE DATOS (PDC)
+        meta.getPersistentDataContainer().set(llaveWeaponId, PersistentDataType.STRING, dto.id());
+        meta.getPersistentDataContainer().set(llaveWeaponPrestige, PersistentDataType.INTEGER, 0); // Empieza en prestigio 0
+
+        // ==========================================
+        // ⚙️ MANIPULACIÓN DE ATRIBUTOS NATIVOS 1.21.11
+        // ==========================================
+
+        // 1. Daño
+        NamespacedKey dmgKey = new NamespacedKey(pluginMemoria, "nexo_dmg_" + dto.id());
+        org.bukkit.attribute.AttributeModifier dmgMod = new org.bukkit.attribute.AttributeModifier(
+                dmgKey, dto.danioBase(), org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER, org.bukkit.inventory.EquipmentSlotGroup.MAINHAND);
+        meta.addAttributeModifier(org.bukkit.attribute.Attribute.GENERIC_ATTACK_DAMAGE, dmgMod);
+
+        // 2. Velocidad de Ataque (La base de Minecraft es 4.0. Si queremos 1.2, restamos 2.8)
+        NamespacedKey spdKey = new NamespacedKey(pluginMemoria, "nexo_spd_" + dto.id());
+        double speedOffset = dto.velocidadAtaque() - 4.0;
+        org.bukkit.attribute.AttributeModifier spdMod = new org.bukkit.attribute.AttributeModifier(
+                spdKey, speedOffset, org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER, org.bukkit.inventory.EquipmentSlotGroup.MAINHAND);
+        meta.addAttributeModifier(org.bukkit.attribute.Attribute.GENERIC_ATTACK_SPEED, spdMod);
+
+        // Ocultar atributos vanilla feos (El clásico "+7 Daño de ataque" verde de Minecraft)
+        meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
+
         item.setItemMeta(meta);
         return item;
     }
 
     // ==========================================
-    // ⚙️ FÁBRICA DATA-DRIVEN (Profesiones)
+    // ⚙️ FÁBRICA DATA-DRIVEN (ARMADURAS PROFESIONES)
     // ==========================================
     public static ItemStack generarArmaduraProfesion(String id_yml, String tipoPieza) {
         ArmorDTO dto = pluginMemoria.getFileManager().getArmorDTO(id_yml);
@@ -194,13 +184,16 @@ public class ItemManager {
         // 🚀 INYECCIÓN DEL ID MAESTRO
         meta.getPersistentDataContainer().set(llaveArmaduraId, PersistentDataType.STRING, dto.id());
 
-        // Mantenemos las antiguas por si hay plugins de terceros, pero nosotros usaremos el ID
+        // Compatibilidad con sistemas viejos
         if (dto.vidaExtra() > 0) meta.getPersistentDataContainer().set(llaveVidaExtra, PersistentDataType.DOUBLE, dto.vidaExtra());
 
         item.setItemMeta(meta);
         return item;
     }
 
+    // ==========================================
+    // ⚙️ ARTEFACTOS Y MATERIALES
+    // ==========================================
     public static ItemStack crearPolvoEstelar() {
         ItemStack item = new ItemStack(Material.GLOWSTONE_DUST);
         ItemMeta meta = item.getItemMeta();

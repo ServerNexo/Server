@@ -27,19 +27,37 @@ public class ComandoTest implements CommandExecutor {
         }
 
         // ==========================================
-        // 🔮 MODO INVOCACIÓN DE SETS COMPLETOS (Ej: /test agri_t7)
+        // ⚔️ MODO INVOCACIÓN DE ARMAS (Ej: /test arma dagas_espinas_t1)
         // ==========================================
-        if (args.length >= 1) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("arma")) {
+            String idArma = args[1].toLowerCase();
+            ItemStack arma = ItemManager.generarArmaRPG(idArma);
+
+            // Si nos devuelve una espada de madera sin nombre, es que falló
+            if (arma.getType() == Material.WOODEN_SWORD && !arma.getItemMeta().hasDisplayName()) {
+                p.sendMessage("§c[!] Error: No se encontró '" + idArma + "' en armas.yml");
+                return true;
+            }
+
+            p.getInventory().addItem(arma);
+            p.sendMessage("§a✨ ¡Has invocado el arma: §e" + idArma + "§a!");
+            return true;
+        }
+
+        // ==========================================
+        // 🛡️ MODO INVOCACIÓN DE ARMADURAS (Ej: /test agri_t7)
+        // ==========================================
+        if (args.length == 1) {
             String idArmadura = args[0].toLowerCase();
 
-            // 1. Comprobamos si el ID existe pidiendo un Peto de prueba
+            // Comprobamos si el ID existe pidiendo un Peto de prueba
             ItemStack prueba = ItemManager.generarArmaduraProfesion(idArmadura, "CHESTPLATE");
             if (prueba.getType() == Material.STONE && !prueba.getItemMeta().hasDisplayName()) {
                 p.sendMessage("§c[!] Error: No se encontró '" + idArmadura + "' en armaduras.yml");
                 return true;
             }
 
-            // 2. ¡Imprimimos el Set Completo!
+            // ¡Imprimimos el Set Completo!
             String[] piezas = {"HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"};
             for (String pieza : piezas) {
                 ItemStack itemSet = ItemManager.generarArmaduraProfesion(idArmadura, pieza);
@@ -54,15 +72,16 @@ public class ComandoTest implements CommandExecutor {
         // ⚙️ MODO NORMAL (Sin argumentos)
         // ==========================================
         p.sendMessage("§6§l=== PANEL DE DESARROLLADOR NEXO ===");
-        p.sendMessage("§e/test <ID_YML> §7- Invoca una armadura del archivo (Ej: /test agri_t7)");
+        p.sendMessage("§e/test arma <ID> §7- Invoca un arma (Ej: /test arma dagas_espinas_t1)");
+        p.sendMessage("§e/test <ID> §7- Invoca una armadura (Ej: /test agri_t7)");
         p.sendMessage("§e/test §7- Abre el menú de Herrería y da Polvos");
 
-        // 1. Te damos 10 Polvos Estelares
+        // Te damos 10 Polvos Estelares
         ItemStack polvos = ItemManager.crearPolvoEstelar();
         polvos.setAmount(10);
         p.getInventory().addItem(polvos);
 
-        // 2. Te abrimos el menú de la Herrería
+        // Te abrimos el menú de la Herrería
         HerreriaListener herreria = new HerreriaListener(plugin);
         herreria.abrirMenu(p);
 

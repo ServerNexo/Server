@@ -12,7 +12,7 @@ public class Main extends JavaPlugin {
     private DatabaseManager databaseManager;
     private FileManager fileManager;
 
-    // 🛡️ AHORA SON CONCURRENTES (Seguros contra crasheos de hilos)
+    // 🛡️ RAM: Variables concurrentes seguras
     public ConcurrentHashMap<UUID, Integer> nexoNiveles = new ConcurrentHashMap<>();
     public ConcurrentHashMap<UUID, Integer> nexoXp = new ConcurrentHashMap<>();
     public ConcurrentHashMap<UUID, Integer> combateNiveles = new ConcurrentHashMap<>();
@@ -22,7 +22,8 @@ public class Main extends JavaPlugin {
     public ConcurrentHashMap<UUID, Integer> agriculturaNiveles = new ConcurrentHashMap<>();
     public ConcurrentHashMap<UUID, Integer> agriculturaXp = new ConcurrentHashMap<>();
     public ConcurrentHashMap<UUID, Integer> energiaMineria = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, Integer> manaJugador = new ConcurrentHashMap<>();
+
+    // 💧 MANÁ ELIMINADO DE LA RAM: Ahora lo controla AuraSkills directamente.
     public ConcurrentHashMap<UUID, String> claseJugador = new ConcurrentHashMap<>();
 
     @Override
@@ -38,7 +39,6 @@ public class Main extends JavaPlugin {
         getCommand("desguace").setExecutor(new ComandoDesguace(this));
 
         getServer().getPluginManager().registerEvents(new DesguaceListener(this), this);
-        // Daño ahora maneja todo (ataque y requisitos)
         getServer().getPluginManager().registerEvents(new DamageListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         getServer().getPluginManager().registerEvents(new HerreriaListener(this), this);
@@ -46,8 +46,6 @@ public class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockBreakListener(this), this);
         getServer().getPluginManager().registerEvents(new FishingListener(this), this);
         getServer().getPluginManager().registerEvents(new CraftingListener(this), this);
-
-        // ¡ItemRequirementListener ELIMINADO de aquí!
 
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new NexoExpansion(this).register();
@@ -57,6 +55,7 @@ public class Main extends JavaPlugin {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 UUID id = p.getUniqueId();
 
+                // 1. Energía (Sistema propio de recolección y artefactos)
                 int nivelNexo = nexoNiveles.getOrDefault(id, 1);
                 int maxEnergia = 100 + ((nivelNexo - 1) * 20);
                 int energiaActual = energiaMineria.getOrDefault(id, maxEnergia);
@@ -66,20 +65,22 @@ public class Main extends JavaPlugin {
                     energiaActual = Math.min(energiaActual + 5, maxEnergia);
                 }
 
-                int nivelCombate = combateNiveles.getOrDefault(id, 1);
-                int maxMana = 100 + (nivelCombate * 10);
-                int manaActual = manaJugador.getOrDefault(id, maxMana);
+                // 2. LEER MANÁ DIRECTO DE AURASKILLS
+                int manaActual = 0;
+                int maxMana = 0;
+                try {
+                    dev.aurelium.auraskills.api.user.SkillsUser user = dev.aurelium.auraskills.api.AuraSkillsApi.get().getUser(id);
+                    if (user != null) {
+                        manaActual = (int) user.getMana();
+                        maxMana = (int) user.getMaxMana();
+                    }
+                } catch (Exception ignored) {}
 
-                if (manaActual < maxMana) {
-                    manaJugador.put(id, Math.min(manaActual + 15, maxMana));
-                    manaActual = Math.min(manaActual + 15, maxMana);
-                }
-
-                // Obtenemos la vida real del jugador para mostrarla
+                // 3. Obtenemos la vida real del jugador para mostrarla
                 int hpActual = (int) Math.ceil(p.getHealth());
                 int hpMax = (int) p.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue();
 
-                // Dibujar el HUD completo
+                // 4. Dibujar el HUD completo en pantalla
                 String hud = "§c❤ " + hpActual + "/" + hpMax + "  §b💧 " + manaActual + "/" + maxMana + "  §e⚡ " + energiaActual + "/" + maxEnergia;
                 p.sendActionBar(hud);
             }
@@ -87,7 +88,7 @@ public class Main extends JavaPlugin {
 
         new ArmorTask(this).runTaskTimer(this, 10L, 10L);
 
-        getLogger().info("¡Nexo Core V3: Sistema de Clases Optimizado!");
+        getLogger().info("¡Nexo Core V3: Integración de Maná de AuraSkills Completada!");
     }
 
     @Override

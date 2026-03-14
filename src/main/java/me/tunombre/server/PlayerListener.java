@@ -25,7 +25,7 @@ public class PlayerListener implements Listener {
         plugin.getDatabaseManager().cargarJugador(jugador);
 
         if (!jugador.hasPlayedBefore()) {
-            jugador.getInventory().addItem(ItemManager.generarArma("Mago", "Fuego", 1));
+            jugador.getInventory().addItem(ItemManager.generarArmaRPG("baculo_manantial_t1"));
             jugador.sendMessage("§6§lNEXO §8| §7¡Bienvenido! Te hemos entregado tu primera arma.");
         }
     }
