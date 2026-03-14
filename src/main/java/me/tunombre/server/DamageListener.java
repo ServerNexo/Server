@@ -27,57 +27,60 @@ public class DamageListener implements Listener {
             var arma = jugador.getInventory().getItemInMainHand();
             if (arma == null || !arma.hasItemMeta()) return;
 
+            var pdc = arma.getItemMeta().getPersistentDataContainer();
             double dañoReal = event.getDamage();
-            String claseJugador = "Mago"; // AQUI DEBES USAR: plugin.claseJugador.getOrDefault(jugador.getUniqueId(), "Ninguna");
+            String claseJugador = plugin.claseJugador.getOrDefault(jugador.getUniqueId(), "Aventurero");
+            int nivelCombate = plugin.combateNiveles.getOrDefault(jugador.getUniqueId(), 1);
 
-            // 1. LEER EL DAÑO BASE Y RESTRICCIÓN DE CLASE
-            if (arma.getItemMeta().hasLore()) {
-                for (String linea : arma.getItemMeta().getLore()) {
-                    String limpia = ChatColor.stripColor(linea);
-
-                    // 🛑 RESTRICCIÓN DE CLASE EN ARMAS
-                    if (limpia.startsWith("Clase: ")) {
-                        String claseArma = limpia.replace("Clase: ", "").trim();
-                        if (!claseArma.equalsIgnoreCase(claseJugador) && !claseArma.equalsIgnoreCase("Cualquiera")) {
-                            jugador.sendMessage("§c§l⚠ §cEsta arma es muy pesada/compleja para tu clase.");
-                            jugador.playSound(jugador.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
-                            event.setDamage(1.0); // Hace daño de puño si no es su clase
-                            return; // Cortamos la ejecución aquí
-                        }
-                    }
-
-                    if (limpia.startsWith("Daño Base: ")) {
-                        try {
-                            dañoReal = Double.parseDouble(limpia.replace("Daño Base: ", "").trim());
-                        } catch (Exception ignored) {}
-                    }
+            // ==========================================
+            // 1. REQUISITOS DE CLASE Y NIVEL
+            // ==========================================
+            if (pdc.has(ItemManager.llaveArmaClase, PersistentDataType.STRING)) {
+                String claseArma = pdc.get(ItemManager.llaveArmaClase, PersistentDataType.STRING);
+                if (!claseArma.equalsIgnoreCase(claseJugador) && !claseArma.equalsIgnoreCase("Cualquiera")) {
+                    jugador.sendMessage("§c§l⚠ §cEsta arma es muy pesada/compleja para tu clase.");
+                    jugador.playSound(jugador.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
+                    event.setDamage(1.0);
+                    return;
                 }
             }
 
-            var container = arma.getItemMeta().getPersistentDataContainer();
+            if (pdc.has(ItemManager.llaveArmaReqCombate, PersistentDataType.INTEGER)) {
+                int req = pdc.get(ItemManager.llaveArmaReqCombate, PersistentDataType.INTEGER);
+                if (nivelCombate < req) {
+                    event.setCancelled(true);
+                    jugador.sendMessage("§c§l⚠ ARMA PESADA §8| §7Necesitas Nivel de Combate §e" + req + " §7para usarla.");
+                    jugador.playSound(jugador.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
+                    return;
+                }
+            }
 
-            // 2. APLICAR BONO DE LA HERRERÍA
-            if (container.has(ItemManager.llaveNivelMejora, PersistentDataType.INTEGER)) {
-                int nivelHerreria = container.get(ItemManager.llaveNivelMejora, PersistentDataType.INTEGER);
+            // ==========================================
+            // 2. CÁLCULO DE DAÑO RPG
+            // ==========================================
+            if (pdc.has(ItemManager.llaveArmaDanioBase, PersistentDataType.DOUBLE)) {
+                dañoReal = pdc.get(ItemManager.llaveArmaDanioBase, PersistentDataType.DOUBLE);
+            }
+
+            // Bono Herrería
+            if (pdc.has(ItemManager.llaveNivelMejora, PersistentDataType.INTEGER)) {
+                int nivelHerreria = pdc.get(ItemManager.llaveNivelMejora, PersistentDataType.INTEGER);
                 dañoReal += (dañoReal * (nivelHerreria * 0.10));
             }
 
-            // 🎒 3. ESCANEAR INVENTARIO BUSCANDO TALISMANES DE DAÑO
-            // Aquí sumamos daño extra si el jugador lleva "Artefactos" en su inventario
-            // (Para esto tendrás que crear una 'llaveDanioExtra' en ItemManager después)
-            for (ItemStack itemBolsa : jugador.getInventory().getContents()) {
-                if (itemBolsa != null && itemBolsa.hasItemMeta()) {
-                    /* Descomenta esto cuando añadas la llaveDanioExtra en ItemManager
-                    if (itemBolsa.getItemMeta().getPersistentDataContainer().has(ItemManager.llaveDanioExtra, PersistentDataType.DOUBLE)) {
-                        dañoReal += itemBolsa.getItemMeta().getPersistentDataContainer().get(ItemManager.llaveDanioExtra, PersistentDataType.DOUBLE);
-                    }
-                    */
-                }
+            // Escalado por Nivel de Combate (+2% por nivel)
+            dañoReal += (dañoReal * (nivelCombate * 0.02));
+
+            // Bono Arma Mítica
+            if (pdc.has(ItemManager.llaveArmaMitica, PersistentDataType.BYTE)) {
+                dañoReal *= 1.5;
             }
 
-            // 4. LA RUEDA ELEMENTAL (Debilidades)
-            if (container.has(ItemManager.llaveElemento, PersistentDataType.STRING)) {
-                String elementoArma = container.get(ItemManager.llaveElemento, PersistentDataType.STRING);
+            // ==========================================
+            // 3. LA RUEDA ELEMENTAL (Debilidades)
+            // ==========================================
+            if (pdc.has(ItemManager.llaveElemento, PersistentDataType.STRING)) {
+                String elementoArma = pdc.get(ItemManager.llaveElemento, PersistentDataType.STRING);
                 String nombreMob = victima.getCustomName() != null ? ChatColor.stripColor(victima.getCustomName()).toUpperCase() : "";
 
                 double multiplicador = 1.0;
@@ -114,7 +117,6 @@ public class DamageListener implements Listener {
                 }
             }
 
-            // 5. SOBREESCRIBIR EL DAÑO
             event.setDamage(dañoReal);
         }
     }

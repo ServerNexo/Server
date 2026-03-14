@@ -106,7 +106,7 @@ public class BlockBreakListener implements Listener {
                 return;
             }
 
-            // ESCANEAR ARMADURA PARA SUERTE
+            // ESCANEAR ARMADURA PARA SUERTE (Desde RAM)
             int cantidadDrops = 1;
             double suerteMineraTotal = 0.0;
             double suerteAgricolaTotal = 0.0;
@@ -116,14 +116,13 @@ public class BlockBreakListener implements Listener {
                 if (itemArmadura == null || !itemArmadura.hasItemMeta()) continue;
                 var meta = itemArmadura.getItemMeta().getPersistentDataContainer();
 
-                if (meta.has(ItemManager.llaveSuerteMinera, PersistentDataType.DOUBLE)) {
-                    suerteMineraTotal += meta.get(ItemManager.llaveSuerteMinera, PersistentDataType.DOUBLE);
-                }
-                if (meta.has(ItemManager.llaveSuerteAgricola, PersistentDataType.DOUBLE)) {
-                    suerteAgricolaTotal += meta.get(ItemManager.llaveSuerteAgricola, PersistentDataType.DOUBLE);
-                }
-                if (meta.has(ItemManager.llaveSuerteTala, PersistentDataType.DOUBLE)) {
-                    suerteTalaTotal += meta.get(ItemManager.llaveSuerteTala, PersistentDataType.DOUBLE);
+                if (meta.has(ItemManager.llaveArmaduraId, PersistentDataType.STRING)) {
+                    ArmorDTO dto = plugin.getFileManager().getArmorDTO(meta.get(ItemManager.llaveArmaduraId, PersistentDataType.STRING));
+                    if (dto != null) {
+                        suerteMineraTotal += dto.suerteMinera();
+                        suerteAgricolaTotal += dto.suerteAgricola();
+                        suerteTalaTotal += dto.suerteTala();
+                    }
                 }
             }
 

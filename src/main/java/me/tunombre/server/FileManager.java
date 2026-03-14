@@ -4,7 +4,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
-import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class FileManager {
 
@@ -12,6 +12,9 @@ public class FileManager {
 
     private FileConfiguration artefactosConfig, armadurasConfig, armasConfig, herramientasConfig, reforjasConfig, encantamientosConfig;
     private File artefactosFile, armadurasFile, armasFile, herramientasFile, reforjasFile, encantamientosFile;
+
+    // 🧠 CACHÉ EN RAM PARA ARMADURAS
+    private final ConcurrentHashMap<String, ArmorDTO> armorCache = new ConcurrentHashMap<>();
 
     public FileManager(Main plugin) {
         this.plugin = plugin;
@@ -23,38 +26,63 @@ public class FileManager {
             plugin.getDataFolder().mkdir();
         }
 
-        // 1. Artefactos
         artefactosFile = new File(plugin.getDataFolder(), "artefactos.yml");
         if (!artefactosFile.exists()) plugin.saveResource("artefactos.yml", false);
         artefactosConfig = YamlConfiguration.loadConfiguration(artefactosFile);
 
-        // 2. Armaduras
         armadurasFile = new File(plugin.getDataFolder(), "armaduras.yml");
         if (!armadurasFile.exists()) plugin.saveResource("armaduras.yml", false);
         armadurasConfig = YamlConfiguration.loadConfiguration(armadurasFile);
 
-        // 3. Armas
         armasFile = new File(plugin.getDataFolder(), "armas.yml");
         if (!armasFile.exists()) plugin.saveResource("armas.yml", false);
         armasConfig = YamlConfiguration.loadConfiguration(armasFile);
 
-        // 4. Herramientas
         herramientasFile = new File(plugin.getDataFolder(), "herramientas.yml");
         if (!herramientasFile.exists()) plugin.saveResource("herramientas.yml", false);
         herramientasConfig = YamlConfiguration.loadConfiguration(herramientasFile);
 
-        // 5. Reforjas
         reforjasFile = new File(plugin.getDataFolder(), "reforjas.yml");
         if (!reforjasFile.exists()) plugin.saveResource("reforjas.yml", false);
         reforjasConfig = YamlConfiguration.loadConfiguration(reforjasFile);
 
-        // 6. Encantamientos
         encantamientosFile = new File(plugin.getDataFolder(), "encantamientos.yml");
         if (!encantamientosFile.exists()) plugin.saveResource("encantamientos.yml", false);
         encantamientosConfig = YamlConfiguration.loadConfiguration(encantamientosFile);
+
+        // Cargamos las armaduras a la RAM
+        cargarCacheArmaduras();
     }
 
-    // GETTERS PARA LEER LOS DATOS
+    private void cargarCacheArmaduras() {
+        armorCache.clear();
+        if (armadurasConfig.contains("armaduras_profesion")) {
+            for (String key : armadurasConfig.getConfigurationSection("armaduras_profesion").getKeys(false)) {
+                String path = "armaduras_profesion." + key;
+                ArmorDTO dto = new ArmorDTO(
+                        key,
+                        armadurasConfig.getString(path + ".nombre", "Armadura"),
+                        armadurasConfig.getString(path + ".clase", "Cualquiera"),
+                        armadurasConfig.getString(path + ".requisito_skill", "Ninguna"),
+                        armadurasConfig.getInt(path + ".nivel_requerido", 1),
+                        armadurasConfig.getDouble(path + ".vida_extra", 0.0),
+                        armadurasConfig.getDouble(path + ".velocidad_movimiento", 0.0),
+                        armadurasConfig.getDouble(path + ".suerte_minera", 0.0),
+                        armadurasConfig.getDouble(path + ".velocidad_mineria", 0.0),
+                        armadurasConfig.getDouble(path + ".suerte_agricola", 0.0),
+                        armadurasConfig.getDouble(path + ".suerte_tala", 0.0),
+                        armadurasConfig.getDouble(path + ".criatura_marina", 0.0),
+                        armadurasConfig.getDouble(path + ".velocidad_pesca", 0.0)
+                );
+                armorCache.put(key, dto);
+            }
+        }
+    }
+
+    public ArmorDTO getArmorDTO(String id) {
+        return armorCache.get(id);
+    }
+
     public FileConfiguration getArtefactos() { return artefactosConfig; }
     public FileConfiguration getArmaduras() { return armadurasConfig; }
     public FileConfiguration getArmas() { return armasConfig; }

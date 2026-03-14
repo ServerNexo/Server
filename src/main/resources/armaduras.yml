@@ -410,3 +410,372 @@ armaduras_profesion:
       - "&7Pesca directamente en la lava del inframundo."
       - ""
       - "&c🌋 Pasiva: &fVelocidad en Magma"
+      -
+  # ==========================================
+  # ⚔️ ARMADURAS RPG (COMBATE Y CLASES)
+  # ==========================================
+
+    # --- TIER 1 (Combate 1) ---
+  combate_guerrero_t1:
+    nombre: "&6Coraza de Terracota"
+    material: LEATHER_CHESTPLATE
+    clase: "Guerrero"
+    requisito_skill: "Combate"
+    nivel_requerido: 1
+    vida_extra: 15.0
+    lore_custom:
+      - "&7Elemento: &6Tierra"
+      - "&7Estadísticas Base:"
+      - "&8+80 Defensa | +10 Fuerza"
+      - ""
+      - "&6✦ Pasiva: &fFirmeza"
+
+  combate_mago_t1:
+    nombre: "&9Túnica del Manantial"
+    material: LEATHER_CHESTPLATE
+    clase: "Mago"
+    requisito_skill: "Combate"
+    nivel_requerido: 1
+    vida_extra: 10.0
+    lore_custom:
+      - "&7Elemento: &9Agua"
+      - "&7Estadísticas Base:"
+      - "&8+40 Defensa | +50 Inteligencia"
+      - ""
+      - "&9✦ Pasiva: &fFlujo"
+
+  combate_arquero_t1:
+    nombre: "&fManto de Brisa"
+    material: LEATHER_CHESTPLATE
+    clase: "Arquero"
+    requisito_skill: "Combate"
+    nivel_requerido: 1
+    vida_extra: 12.0
+    velocidad_movimiento: 5.0
+    lore_custom:
+      - "&7Elemento: &fViento"
+      - "&7Estadísticas Base:"
+      - "&8+50 Defensa"
+      - ""
+      - "&f✦ Pasiva: &fLigereza"
+
+  combate_asesino_t1:
+    nombre: "&2Atavío de Espinas"
+    material: LEATHER_CHESTPLATE
+    clase: "Asesino"
+    requisito_skill: "Combate"
+    nivel_requerido: 1
+    vida_extra: 10.0
+    lore_custom:
+      - "&7Elemento: &2Veneno"
+      - "&7Estadísticas Base:"
+      - "&8+40 Defensa | +15% Daño Crítico"
+      - ""
+      - "&2✦ Pasiva: &fPúa"
+
+
+  # --- TIER 2 (Combate 12) ---
+  combate_guerrero_t2:
+    nombre: "&4Placas de Sangre Corrupta"
+    material: CHAINMAIL_CHESTPLATE
+    clase: "Guerrero"
+    requisito_skill: "Combate"
+    nivel_requerido: 12
+    vida_extra: 35.0
+    lore_custom:
+      - "&7Elemento: &7Metal"
+      - "&7Estadísticas Base:"
+      - "&8+180 Defensa | +25 Fuerza"
+      - ""
+      - "&4✦ Pasiva: &fSed de Sangre"
+
+  combate_mago_t2:
+    nombre: "&eVestimenta de Tormenta"
+    material: GOLDEN_CHESTPLATE
+    clase: "Mago"
+    requisito_skill: "Combate"
+    nivel_requerido: 12
+    vida_extra: 25.0
+    lore_custom:
+      - "&7Elemento: &eRayo"
+      - "&7Estadísticas Base:"
+      - "&8+100 Defensa | +150 Inteligencia"
+      - ""
+      - "&e✦ Pasiva: &fEstática"
+
+  combate_arquero_t2:
+    nombre: "&aEscamas de Cazador"
+    material: CHAINMAIL_CHESTPLATE
+    clase: "Arquero"
+    requisito_skill: "Combate"
+    nivel_requerido: 12
+    vida_extra: 28.0
+    lore_custom:
+      - "&7Elemento: &aNaturaleza"
+      - "&7Estadísticas Base:"
+      - "&8+120 Defensa | +10% Prob. Crítico"
+      - ""
+      - "&a✦ Pasiva: &fEmboscada"
+
+  combate_asesino_t2:
+    nombre: "&8Capa del Sicario Oscuro"
+    material: LEATHER_CHESTPLATE
+    clase: "Asesino"
+    requisito_skill: "Combate"
+    nivel_requerido: 12
+    vida_extra: 22.0
+    lore_custom:
+      - "&7Elemento: &8Sombras"
+      - "&7Estadísticas Base:"
+      - "&8+90 Defensa | +40% Daño Crítico"
+      - ""
+      - "&8✦ Pasiva: &fPaso Sombrío"
+
+
+  # --- TIER 3 (Combate 24) ---
+  combate_guerrero_t3:
+    nombre: "&cÉgida de Escoria"
+    material: IRON_CHESTPLATE
+    clase: "Guerrero"
+    requisito_skill: "Combate"
+    nivel_requerido: 24
+    vida_extra: 80.0
+    lore_custom:
+      - "&7Elemento: &cMagma"
+      - "&7Estadísticas Base:"
+      - "&8+350 Defensa | +45 Fuerza"
+      - ""
+      - "&c✦ Pasiva: &fErupción"
+
+  combate_mago_t3:
+    nombre: "&5Sudario de Necros"
+    material: IRON_CHESTPLATE
+    clase: "Mago"
+    requisito_skill: "Combate"
+    nivel_requerido: 24
+    vida_extra: 60.0
+    lore_custom:
+      - "&7Elemento: &5Vacío"
+      - "&7Estadísticas Base:"
+      - "&8+200 Defensa | +400 Inteligencia"
+      - ""
+      - "&5✦ Pasiva: &fCosecha de Almas"
+
+  combate_arquero_t3:
+    nombre: "&2Manto de la Viuda"
+    material: IRON_CHESTPLATE
+    clase: "Arquero"
+    requisito_skill: "Combate"
+    nivel_requerido: 24
+    vida_extra: 65.0
+    lore_custom:
+      - "&7Elemento: &2Veneno"
+      - "&7Estadísticas Base:"
+      - "&8+250 Defensa | +20% Prob. Crítico"
+      - ""
+      - "&2✦ Pasiva: &fNeurotoxina"
+
+  combate_asesino_t3:
+    nombre: "&fEmbozo del Céfiro"
+    material: IRON_CHESTPLATE
+    clase: "Asesino"
+    requisito_skill: "Combate"
+    nivel_requerido: 24
+    vida_extra: 50.0
+    velocidad_movimiento: 30.0
+    lore_custom:
+      - "&7Elemento: &fViento"
+      - "&7Estadísticas Base:"
+      - "&8+180 Defensa"
+      - ""
+      - "&f✦ Pasiva: &fImpulso"
+
+
+  # --- TIER 4 (Combate 36) ---
+  combate_guerrero_t4:
+    nombre: "&4Égida del Demon Lord"
+    material: DIAMOND_CHESTPLATE
+    clase: "Guerrero"
+    requisito_skill: "Combate"
+    nivel_requerido: 36
+    vida_extra: 120.0
+    lore_custom:
+      - "&7Elemento: &4Fuego"
+      - "&7Estadísticas Base:"
+      - "&8+600 Defensa | +80 Fuerza"
+      - ""
+      - "&4✦ Pasiva: &fInfierno"
+
+  combate_mago_t4:
+    nombre: "&bTúnica de Permafrost"
+    material: DIAMOND_CHESTPLATE
+    clase: "Mago"
+    requisito_skill: "Combate"
+    nivel_requerido: 36
+    vida_extra: 90.0
+    lore_custom:
+      - "&7Elemento: &bHielo"
+      - "&7Estadísticas Base:"
+      - "&8+300 Defensa | +800 Inteligencia"
+      - ""
+      - "&b✦ Pasiva: &fCero Absoluto"
+
+  combate_arquero_t4:
+    nombre: "&eEscalas de Tormenta"
+    material: DIAMOND_CHESTPLATE
+    clase: "Arquero"
+    requisito_skill: "Combate"
+    nivel_requerido: 36
+    vida_extra: 95.0
+    lore_custom:
+      - "&7Elemento: &eRayo"
+      - "&7Estadísticas Base:"
+      - "&8+350 Defensa | +40% Prob. Crítico"
+      - ""
+      - "&e✦ Pasiva: &fSobrecarga"
+
+  combate_asesino_t4:
+    nombre: "&0Placas de Sombras"
+    material: DIAMOND_CHESTPLATE
+    clase: "Asesino"
+    requisito_skill: "Combate"
+    nivel_requerido: 36
+    vida_extra: 85.0
+    lore_custom:
+      - "&7Elemento: &0Oscuridad"
+      - "&7Estadísticas Base:"
+      - "&8+300 Defensa | +100% Daño Crítico"
+      - ""
+      - "&8✦ Pasiva: &fCapa de Puñal"
+
+
+  # --- TIER 5 (Combate 45) ---
+  combate_guerrero_t5:
+    nombre: "&dArmadura Paladín Cosmo"
+    material: NETHERITE_CHESTPLATE
+    clase: "Guerrero"
+    requisito_skill: "Combate"
+    nivel_requerido: 45
+    vida_extra: 200.0
+    lore_custom:
+      - "&7Elemento: &dCósmico"
+      - "&7Estadísticas Base:"
+      - "&8+950 Defensa | +150 Fuerza"
+      - ""
+      - "&d✦ Pasiva: &fGravedad Cero"
+
+  combate_mago_t5:
+    nombre: "&5Vestimenta del Tejeestrellas"
+    material: NETHERITE_CHESTPLATE
+    clase: "Mago"
+    requisito_skill: "Combate"
+    nivel_requerido: 45
+    vida_extra: 150.0
+    lore_custom:
+      - "&7Elemento: &5Astral"
+      - "&7Estadísticas Base:"
+      - "&8+500 Defensa | +1500 Inteligencia"
+      - ""
+      - "&5✦ Pasiva: &fLluvia de Meteoros"
+
+  combate_arquero_t5:
+    nombre: "&6Manto de Fuego Solar"
+    material: NETHERITE_CHESTPLATE
+    clase: "Arquero"
+    requisito_skill: "Combate"
+    nivel_requerido: 45
+    vida_extra: 160.0
+    lore_custom:
+      - "&7Elemento: &6Solar"
+      - "&7Estadísticas Base:"
+      - "&8+600 Defensa | +60% Prob. Crítico"
+      - ""
+      - "&6✦ Pasiva: &fRayo Solar"
+
+  combate_asesino_t5:
+    nombre: "&9Atavío de Eclipse"
+    material: NETHERITE_CHESTPLATE
+    clase: "Asesino"
+    requisito_skill: "Combate"
+    nivel_requerido: 45
+    vida_extra: 140.0
+    lore_custom:
+      - "&7Elemento: &9Lunar"
+      - "&7Estadísticas Base:"
+      - "&8+450 Defensa | +180% Daño Crítico"
+      - ""
+      - "&9✦ Pasiva: &fFase Lunar"
+
+
+  # --- TIER 6: EL MOLDE DEL NEXO (Combate 55) ---
+  nexo_base_t6:
+    nombre: "&b&lVanguardia Nexo (Cruda)"
+    material: NETHERITE_CHESTPLATE
+    clase: "Cualquiera"
+    requisito_skill: "Combate"
+    nivel_requerido: 55
+    vida_extra: 150.0
+    velocidad_movimiento: 10.0
+    lore_custom:
+      - "&7Una armadura inestable. Llévala a la"
+      - "&7Herrería para sintonizarla con tu clase."
+      - ""
+      - "&8Elemento: &bNexo"
+
+  # --- TIER 6: VARIANTES DEFINITIVAS (Combate 60) ---
+  nexo_guerrero_t6:
+    nombre: "&c&lVanguardia Nexo de la Carnicería"
+    material: NETHERITE_CHESTPLATE
+    clase: "Guerrero"
+    requisito_skill: "Combate"
+    nivel_requerido: 60
+    vida_extra: 350.0 # Equivale a 3500 HP
+    lore_custom:
+      - "&7Elemento: &bNexo &c(Sangre)"
+      - "&7Enfoque: &cVida Masiva y Defensa"
+      - "&8+1500 Defensa | +500 Fuerza"
+      - ""
+      - "&c☠ Pasiva Cénit: &fSed de Sangre Absoluta"
+
+  nexo_mago_t6:
+    nombre: "&d&lVanguardia Nexo del Omnisciente"
+    material: NETHERITE_CHESTPLATE
+    clase: "Mago"
+    requisito_skill: "Combate"
+    nivel_requerido: 60
+    vida_extra: 150.0
+    lore_custom:
+      - "&7Elemento: &bNexo &d(Astral)"
+      - "&7Enfoque: &dManá Infinito"
+      - "&8+1500 Defensa | +500 Inteligencia"
+      - ""
+      - "&d✨ Pasiva Cénit: &fConvergencia Mágica"
+
+  nexo_arquero_t6:
+    nombre: "&e&lVanguardia Nexo del Depredador"
+    material: NETHERITE_CHESTPLATE
+    clase: "Arquero"
+    requisito_skill: "Combate"
+    nivel_requerido: 60
+    vida_extra: 200.0
+    velocidad_movimiento: 50.0
+    lore_custom:
+      - "&7Elemento: &bNexo &e(Solar)"
+      - "&7Enfoque: &eVelocidad y Crítico"
+      - "&8+1500 Defensa | +100% Prob. Crítico"
+      - ""
+      - "&e⚡ Pasiva Cénit: &fCacería Perfecta"
+
+  nexo_asesino_t6:
+    nombre: "&8&lVanguardia Nexo del Vacío"
+    material: NETHERITE_CHESTPLATE
+    clase: "Asesino"
+    requisito_skill: "Combate"
+    nivel_requerido: 60
+    vida_extra: 180.0
+    lore_custom:
+      - "&7Elemento: &bNexo &8(Lunar)"
+      - "&7Enfoque: &8Daño Crítico Letal"
+      - "&8+1500 Defensa | +250% Daño Crítico"
+      - ""
+      - "&8🌙 Pasiva Cénit: &fAniquilación Silenciosa"

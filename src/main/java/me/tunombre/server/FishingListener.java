@@ -31,7 +31,7 @@ public class FishingListener implements Listener {
     public void alPescar(PlayerFishEvent event) {
         Player p = event.getPlayer();
 
-        // 1. Escaneamos la armadura para obtener stats de pesca
+        // 1. Escaneamos la armadura (Desde RAM)
         double probCriaturaTotal = 0.0;
         double velocidadPescaTotal = 0.0;
 
@@ -39,11 +39,12 @@ public class FishingListener implements Listener {
             if (item == null || !item.hasItemMeta()) continue;
             var pdc = item.getItemMeta().getPersistentDataContainer();
 
-            if (pdc.has(ItemManager.llaveCriaturaMarina, PersistentDataType.DOUBLE)) {
-                probCriaturaTotal += pdc.get(ItemManager.llaveCriaturaMarina, PersistentDataType.DOUBLE);
-            }
-            if (pdc.has(ItemManager.llaveVelocidadPesca, PersistentDataType.DOUBLE)) {
-                velocidadPescaTotal += pdc.get(ItemManager.llaveVelocidadPesca, PersistentDataType.DOUBLE);
+            if (pdc.has(ItemManager.llaveArmaduraId, PersistentDataType.STRING)) {
+                ArmorDTO dto = plugin.getFileManager().getArmorDTO(pdc.get(ItemManager.llaveArmaduraId, PersistentDataType.STRING));
+                if (dto != null) {
+                    probCriaturaTotal += dto.criaturaMarina();
+                    velocidadPescaTotal += dto.velocidadPesca();
+                }
             }
         }
 

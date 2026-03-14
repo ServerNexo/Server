@@ -3,7 +3,6 @@ package me.tunombre.server;
 import dev.aurelium.auraskills.api.AuraSkillsApi;
 import dev.aurelium.auraskills.api.skill.Skills;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
@@ -26,136 +25,92 @@ public class ArmorTask extends BukkitRunnable {
             double velMineria = 0;
             double velMovimiento = 0;
 
-            int nivelCombate = plugin.combateNiveles.getOrDefault(p.getUniqueId(), 1);
             String claseJugador = plugin.claseJugador.getOrDefault(p.getUniqueId(), "Aventurero");
 
             // ==========================================
-            // 1. ESCANEAR ARMADURA PUESTA
+            // 1. ESCANEAR ARMADURA DESDE LA RAM
             // ==========================================
             for (int i = 0; i < armor.length; i++) {
                 ItemStack item = armor[i];
                 if (item == null || !item.hasItemMeta()) continue;
+                var pdc = item.getItemMeta().getPersistentDataContainer();
 
-                if (item.getItemMeta().hasLore()) {
-                    boolean cumpleRequisitos = true;
+                // 🚀 NUEVO SISTEMA (Lee del ArmorDTO)
+                if (pdc.has(ItemManager.llaveArmaduraId, PersistentDataType.STRING)) {
+                    String id = pdc.get(ItemManager.llaveArmaduraId, PersistentDataType.STRING);
+                    ArmorDTO dto = plugin.getFileManager().getArmorDTO(id);
 
-                    for (String line : item.getItemMeta().getLore()) {
-                        String clean = ChatColor.stripColor(line);
+                    if (dto != null) {
+                        boolean cumpleRequisitos = true;
 
-                        // 🛑 RESTRICCIÓN DE CLASE (¡AHORA SÍ TE LA QUITA!)
-                        if (clean.startsWith("Clase: ")) {
-                            String claseRequerida = clean.replace("Clase: ", "").trim();
-                            if (!claseRequerida.equalsIgnoreCase(claseJugador) && !claseRequerida.equalsIgnoreCase("Cualquiera")) {
-                                p.getInventory().addItem(item);
-                                if(i == 0) p.getInventory().setBoots(null);
-                                if(i == 1) p.getInventory().setLeggings(null);
-                                if(i == 2) p.getInventory().setChestplate(null);
-                                if(i == 3) p.getInventory().setHelmet(null);
+                        // Restricción de Clase
+                        if (!dto.claseRequerida().equalsIgnoreCase("Cualquiera") &&
+                                !dto.claseRequerida().equalsIgnoreCase("Ninguna") &&
+                                !dto.claseRequerida().equalsIgnoreCase(claseJugador)) {
+                            quitarArmadura(p, item, i, "Clase (" + dto.claseRequerida() + ")", dto.nivelRequerido());
+                            cumpleRequisitos = false;
+                        }
 
-                                p.sendMessage("§c§l⚠ CLASE INCORRECTA §7| Esta armadura es exclusiva para la clase §e" + claseRequerida);
-                                p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
+                        // Restricciones AuraSkills / Combate
+                        if (cumpleRequisitos) {
+                            int nivelJugador = 1;
+                            String skill = dto.skillRequerida();
+
+                            try {
+                                if (skill.equalsIgnoreCase("Combate")) nivelJugador = plugin.combateNiveles.getOrDefault(p.getUniqueId(), 1);
+                                else if (skill.equalsIgnoreCase("Minería")) nivelJugador = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.MINING));
+                                else if (skill.equalsIgnoreCase("Agricultura")) nivelJugador = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FARMING));
+                                else if (skill.equalsIgnoreCase("Pesca")) nivelJugador = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FISHING));
+                                else if (skill.equalsIgnoreCase("Tala")) nivelJugador = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FORAGING));
+                            } catch (Exception ignored) {}
+
+                            if (nivelJugador < dto.nivelRequerido()) {
+                                quitarArmadura(p, item, i, skill, dto.nivelRequerido());
                                 cumpleRequisitos = false;
                             }
                         }
 
-                        // ⚔️ REQUISITO DE COMBATE
-                        if (clean.contains("Requisito de Combate: Nivel ")) {
-                            try {
-                                int req = Integer.parseInt(clean.split("Nivel ")[1].trim());
-                                if (nivelCombate < req) {
-                                    quitarArmadura(p, item, i, "Combate", req);
-                                    cumpleRequisitos = false;
-                                }
-                            } catch (Exception ignored) {}
-                        }
-
-                        // ⛏️ REQUISITO DE MINERÍA
-                        if (clean.contains("Requisito de Minería: Nivel ")) {
-                            try {
-                                int req = Integer.parseInt(clean.split("Nivel ")[1].trim());
-                                int nivelMineria = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.MINING));
-
-                                if (nivelMineria < req) {
-                                    quitarArmadura(p, item, i, "Minería", req);
-                                    cumpleRequisitos = false;
-                                }
-                            } catch (Exception ignored) {}
-                        }
-
-                        // 🌾 REQUISITO DE AGRICULTURA
-                        if (clean.contains("Requisito de Agricultura: Nivel ")) {
-                            try {
-                                int req = Integer.parseInt(clean.split("Nivel ")[1].trim());
-                                int nivelAgricultura = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FARMING));
-
-                                if (nivelAgricultura < req) {
-                                    quitarArmadura(p, item, i, "Agricultura", req);
-                                    cumpleRequisitos = false;
-                                }
-                            } catch (Exception ignored) {}
-                        }
-
-                        // 🎣 REQUISITO DE PESCA
-                        if (clean.contains("Requisito de Pesca: Nivel ")) {
-                            try {
-                                int req = Integer.parseInt(clean.split("Nivel ")[1].trim());
-                                int nivelPesca = Math.max(1, AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FISHING));
-
-                                if (nivelPesca < req) {
-                                    quitarArmadura(p, item, i, "Pesca", req);
-                                    cumpleRequisitos = false;
-                                }
-                            } catch (Exception ignored) {}
+                        // Si cumple, damos las Stats del DTO
+                        if (cumpleRequisitos) {
+                            extraVida += dto.vidaExtra();
+                            velMineria += dto.velocidadMineria();
+                            velMovimiento += dto.velocidadMovimiento();
                         }
                     }
-
-                    // 🔋 SI CUMPLE TODO, EXTRAEMOS LAS ESTADÍSTICAS
-                    if (cumpleRequisitos) {
-                        if (item.getItemMeta().getPersistentDataContainer().has(ItemManager.llaveVidaExtra, PersistentDataType.DOUBLE)) {
-                            extraVida += item.getItemMeta().getPersistentDataContainer().get(ItemManager.llaveVidaExtra, PersistentDataType.DOUBLE);
-                        }
-                        if (item.getItemMeta().getPersistentDataContainer().has(ItemManager.llaveVelocidadMineria, PersistentDataType.DOUBLE)) {
-                            velMineria += item.getItemMeta().getPersistentDataContainer().get(ItemManager.llaveVelocidadMineria, PersistentDataType.DOUBLE);
-                        }
-                        if (item.getItemMeta().getPersistentDataContainer().has(ItemManager.llaveVelocidadMovimiento, PersistentDataType.DOUBLE)) {
-                            velMovimiento += item.getItemMeta().getPersistentDataContainer().get(ItemManager.llaveVelocidadMovimiento, PersistentDataType.DOUBLE);
-                        }
-                    }
+                }
+                // 🛡️ SISTEMA ANTIGUO (Por si usas armaduras vanilla con llave de vida)
+                else if (pdc.has(ItemManager.llaveVidaExtra, PersistentDataType.DOUBLE)) {
+                    extraVida += pdc.get(ItemManager.llaveVidaExtra, PersistentDataType.DOUBLE);
                 }
             }
 
             // ==========================================
-            // 2. APLICAR VIDA FINAL
+            // 2. APLICAR VIDA Y EFECTOS
             // ==========================================
             double total = 20.0 + extraVida;
             if (p.getAttribute(Attribute.GENERIC_MAX_HEALTH).getBaseValue() != total) {
                 p.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(total);
             }
 
-            // ==========================================
-            // 3. APLICAR EFECTOS PASIVOS (ESCALABLES)
-            // ==========================================
             if (velMineria > 0) {
-                // Cada 20 puntos de Velocidad = +1 Nivel de Prisa. ¡Escalado infinito!
                 int nivelHaste = (int) (velMineria / 20);
-                p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.HASTE, 40, nivelHaste));
+                p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.HASTE, 40, nivelHaste, false, false, false));
             }
             if (velMovimiento > 0) {
-                // Cada 20 puntos de Movimiento = +1 Nivel de Velocidad.
                 int nivelSpeed = (int) (velMovimiento / 20);
-                p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SPEED, 40, nivelSpeed));
+                p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SPEED, 40, nivelSpeed, false, false, false));
             }
         }
     }
 
-    private void quitarArmadura(Player p, ItemStack item, int slotIndex, String habilidad, int nivelRequerido) {
+    private void quitarArmadura(Player p, ItemStack item, int slotIndex, String limitante, int nivelRequerido) {
         p.getInventory().addItem(item);
         if(slotIndex == 0) p.getInventory().setBoots(null);
         if(slotIndex == 1) p.getInventory().setLeggings(null);
         if(slotIndex == 2) p.getInventory().setChestplate(null);
         if(slotIndex == 3) p.getInventory().setHelmet(null);
 
-        p.sendMessage("§c§l⚠ NIVEL BAJO §7| Necesitas nivel §e" + nivelRequerido + " §7en §b" + habilidad);
+        p.sendMessage("§c§l⚠ NO ERES DIGNO §7| Requisito: §e" + limitante + " Nv." + nivelRequerido);
         p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
     }
 }
