@@ -1,0 +1,13 @@
+armas:
+  # Formato: clase_elemento_tier
+  mago_fuego_1:
+    nombre: "&cBáculo Ígneo"
+    material: BLAZE_ROD
+    danio_base: 15.0
+    nivel_requerido: 1
+
+  tanque_hielo_3:
+    nombre: "&bMaza Glacial"
+    material: MACE
+    danio_base: 80.0
+    nivel_requerido: 25

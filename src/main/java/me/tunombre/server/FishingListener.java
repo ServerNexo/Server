@@ -1,0 +1,84 @@
+package me.tunombre.server;
+
+import dev.aurelium.auraskills.api.AuraSkillsApi;
+import dev.aurelium.auraskills.api.skill.Skills;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+public class FishingListener implements Listener {
+
+    private final Main plugin;
+    private final Random random = new Random();
+
+    public FishingListener(Main plugin) {
+        this.plugin = plugin;
+    }
+
+    @EventHandler
+    public void alPescar(PlayerFishEvent event) {
+        Player p = event.getPlayer();
+
+        // 1. Escaneamos la armadura para obtener stats de pesca
+        double probCriaturaTotal = 0.0;
+        double velocidadPescaTotal = 0.0;
+
+        for (ItemStack item : p.getInventory().getArmorContents()) {
+            if (item == null || !item.hasItemMeta()) continue;
+            var pdc = item.getItemMeta().getPersistentDataContainer();
+
+            if (pdc.has(ItemManager.llaveCriaturaMarina, PersistentDataType.DOUBLE)) {
+                probCriaturaTotal += pdc.get(ItemManager.llaveCriaturaMarina, PersistentDataType.DOUBLE);
+            }
+            if (pdc.has(ItemManager.llaveVelocidadPesca, PersistentDataType.DOUBLE)) {
+                velocidadPescaTotal += pdc.get(ItemManager.llaveVelocidadPesca, PersistentDataType.DOUBLE);
+            }
+        }
+
+        // 2. Lógica cuando atrapas algo (CAUGHT_FISH)
+        if (event.getState() == PlayerFishEvent.State.CAUGHT_FISH) {
+
+            // 🎲 TIRADA PARA CRIATURA MARINA
+            if (random.nextDouble() * 100 <= probCriaturaTotal) {
+                event.getCaught().remove(); // Quitamos el pez normal
+                spawnearMonstruoMarino(p);
+
+                p.sendActionBar("§3§l¡UNA CRIATURA ABISAL HA EMERGIDO! §3🦑");
+                p.playSound(p.getLocation(), Sound.ENTITY_ELDER_GUARDIAN_CURSE, 0.5f, 1.5f);
+            } else {
+                // Si no sale bicho, damos recompensa normal pero con sonido satisfactorio
+                p.sendActionBar("§b✨ ¡PESCA EXITOSA! §b✨");
+                p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 2.0f);
+            }
+        }
+    }
+
+    private void spawnearMonstruoMarino(Player p) {
+        // Obtenemos nivel de pesca de AuraSkills para saber qué tan fuerte es el bicho
+        int nivelPesca = 1;
+        try {
+            nivelPesca = (int) AuraSkillsApi.get().getUser(p.getUniqueId()).getSkillLevel(Skills.FISHING);
+        } catch (Exception ignored) {}
+
+        // Lógica simple de escalado
+        if (nivelPesca < 10) {
+            p.getWorld().spawnEntity(p.getLocation(), EntityType.ZOMBIE).setCustomName("§7Ahogado de las Mareas");
+        } else if (nivelPesca < 25) {
+            p.getWorld().spawnEntity(p.getLocation(), EntityType.GUARDIAN).setCustomName("§bGuardián de la Fosa");
+        } else {
+            p.getWorld().spawnEntity(p.getLocation(), EntityType.ELDER_GUARDIAN).setCustomName("§3§lLEVIATÁN DEL NEXO");
+        }
+    }
+}
