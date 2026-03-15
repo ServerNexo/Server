@@ -46,6 +46,8 @@ public class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockBreakListener(this), this);
         getServer().getPluginManager().registerEvents(new FishingListener(this), this);
         getServer().getPluginManager().registerEvents(new CraftingListener(this), this);
+        getServer().getPluginManager().registerEvents(new ReforjaListener(this), this);
+        getServer().getPluginManager().registerEvents(new YunqueListener(this), this);
 
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new NexoExpansion(this).register();
@@ -78,7 +80,7 @@ public class Main extends JavaPlugin {
 
                 // 3. Obtenemos la vida real del jugador para mostrarla
                 int hpActual = (int) Math.ceil(p.getHealth());
-                int hpMax = (int) p.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).getValue();
+                int hpMax = (int) p.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
 
                 // 4. Dibujar el HUD completo en pantalla
                 String hud = "§c❤ " + hpActual + "/" + hpMax + "  §b💧 " + manaActual + "/" + maxMana + "  §e⚡ " + energiaActual + "/" + maxEnergia;

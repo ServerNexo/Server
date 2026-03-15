@@ -63,6 +63,51 @@ public class ComandoTest implements CommandExecutor {
         }
 
         // ==========================================
+        // 📖 MODO INVOCACIÓN DE LIBROS (Ej: /test libro vampirismo 3)
+        // ==========================================
+        if (args.length == 3 && args[0].equalsIgnoreCase("libro")) {
+            String idEnchant = args[1].toLowerCase();
+
+            int nivel = 1;
+            try {
+                nivel = Integer.parseInt(args[2]);
+            } catch (NumberFormatException e) {
+                p.sendMessage("§cEl nivel debe ser un número.");
+                return true;
+            }
+
+            ItemStack libro = ItemManager.generarLibroEncantamiento(idEnchant, nivel);
+
+            if (libro.getType() == Material.BOOK && !libro.getItemMeta().hasDisplayName()) {
+                p.sendMessage("§c[!] Error: No se encontró el encantamiento '" + idEnchant + "' en encantamientos.yml");
+                return true;
+            }
+
+            p.getInventory().addItem(libro);
+            p.sendMessage("§a✨ ¡Has invocado un Libro de Encantamiento!");
+            return true;
+        }
+
+        // ⬇️ ¡AQUÍ DEBE IR EL MENÚ DE REFORJAS (ANTES DE LAS ARMADURAS)! ⬇️
+        // ==========================================
+        // 💎 MODO MESA DE REFORJAS (Ej: /test reforja)
+        // ==========================================
+        if (args.length == 1 && args[0].equalsIgnoreCase("reforja")) {
+            ReforjaListener menu = new ReforjaListener(plugin);
+            menu.abrirMenu(p);
+            return true; // Esto detiene la lectura para que no busque armaduras
+        }
+
+        // ==========================================
+        // 🪄 MODO YUNQUE MÁGICO (Ej: /test yunque)
+        // ==========================================
+        if (args.length == 1 && args[0].equalsIgnoreCase("yunque")) {
+            YunqueListener menu = new YunqueListener(plugin);
+            menu.abrirMenu(p);
+            return true;
+        }
+
+        // ==========================================
         // 🛡️ MODO INVOCACIÓN DE ARMADURAS (Ej: /test agri_t7)
         // ==========================================
         if (args.length == 1) {
@@ -93,7 +138,9 @@ public class ComandoTest implements CommandExecutor {
         p.sendMessage("§e/test tool <ID> §7- Invoca una herramienta (Ej: /test tool pico_novato)");
         p.sendMessage("§e/test arma <ID> §7- Invoca un arma (Ej: /test arma dagas_espinas_t1)");
         p.sendMessage("§e/test <ID> §7- Invoca una armadura (Ej: /test agri_t7)");
+        p.sendMessage("§e/test reforja §7- Abre el menú de Reforjas");
         p.sendMessage("§e/test §7- Abre el menú de Herrería y da Polvos");
+        p.sendMessage("§e/test libro <ID> <Nivel> §7- Invoca un libro encantado (Ej: /test libro ejecutor 5)");
 
         // Te damos 10 Polvos Estelares
         ItemStack polvos = ItemManager.crearPolvoEstelar();

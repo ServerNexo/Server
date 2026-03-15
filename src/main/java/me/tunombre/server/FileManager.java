@@ -13,10 +13,12 @@ public class FileManager {
     private FileConfiguration artefactosConfig, armadurasConfig, armasConfig, herramientasConfig, reforjasConfig, encantamientosConfig;
     private File artefactosFile, armadurasFile, armasFile, herramientasFile, reforjasFile, encantamientosFile;
 
-    // 🧠 CACHÉ EN RAM PARA ARMADURAS, ARMAS Y HERRAMIENTAS
+    // 🧠 CACHÉ EN RAM PARA ARMADURAS, ARMAS, HERRAMIENTAS, REFORJAS Y ENCANTAMIENTOS
     private final ConcurrentHashMap<String, ArmorDTO> armorCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, WeaponDTO> weaponCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ToolDTO> toolCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ReforgeDTO> reforgeCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, EnchantDTO> enchantCache = new ConcurrentHashMap<>(); // ⬅️ NUEVA CACHÉ DE ENCANTAMIENTOS
 
     public FileManager(Main plugin) {
         this.plugin = plugin;
@@ -56,6 +58,8 @@ public class FileManager {
         cargarCacheArmaduras();
         cargarCacheArmas();
         cargarCacheHerramientas();
+        cargarCacheReforjas();
+        cargarCacheEncantamientos(); // ⬅️ LLAMADA AL NUEVO MÉTODO DE CARGA
     }
 
     private void cargarCacheArmaduras() {
@@ -127,9 +131,51 @@ public class FileManager {
         }
     }
 
+    public void cargarCacheReforjas() {
+        reforgeCache.clear();
+        if (reforjasConfig.contains("reforjas")) {
+            for (String key : reforjasConfig.getConfigurationSection("reforjas").getKeys(false)) {
+                String path = "reforjas." + key;
+                ReforgeDTO dto = new ReforgeDTO(
+                        key,
+                        reforjasConfig.getString(path + ".nombre", "Reforjado"),
+                        reforjasConfig.getString(path + ".prefijo_color", "&7"),
+                        reforjasConfig.getStringList(path + ".aplica_a"),
+                        reforjasConfig.getInt(path + ".costo_polvo", 1),
+                        reforjasConfig.getDouble(path + ".stats.danio_extra", 0.0),
+                        reforjasConfig.getDouble(path + ".stats.velocidad_ataque_extra", 0.0),
+                        reforjasConfig.getDouble(path + ".stats.fortuna", 0.0)
+                );
+                reforgeCache.put(key, dto);
+            }
+        }
+    }
+
+    // ⬇️ NUEVO MÉTODO PARA CARGAR ENCANTAMIENTOS ⬇️
+    public void cargarCacheEncantamientos() {
+        enchantCache.clear();
+        if (encantamientosConfig.contains("encantamientos")) {
+            for (String key : encantamientosConfig.getConfigurationSection("encantamientos").getKeys(false)) {
+                String path = "encantamientos." + key;
+                EnchantDTO dto = new EnchantDTO(
+                        key,
+                        encantamientosConfig.getString(path + ".nombre", "Encantamiento Desconocido"),
+                        encantamientosConfig.getInt(path + ".nivel_maximo", 1),
+                        encantamientosConfig.getStringList(path + ".aplica_a"),
+                        encantamientosConfig.getString(path + ".descripcion", ""),
+                        encantamientosConfig.getDoubleList(path + ".valores_por_nivel")
+                );
+                enchantCache.put(key, dto);
+            }
+        }
+    }
+
+    // GETTERS
     public ArmorDTO getArmorDTO(String id) { return armorCache.get(id); }
     public WeaponDTO getWeaponDTO(String id) { return weaponCache.get(id); }
     public ToolDTO getToolDTO(String id) { return toolCache.get(id); }
+    public ReforgeDTO getReforgeDTO(String id) { return reforgeCache.get(id); }
+    public EnchantDTO getEnchantDTO(String id) { return enchantCache.get(id); } // ⬅️ NUEVO GETTER
 
     public FileConfiguration getArtefactos() { return artefactosConfig; }
     public FileConfiguration getArmaduras() { return armadurasConfig; }

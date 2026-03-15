@@ -106,12 +106,15 @@ public class ArmorTask extends BukkitRunnable {
             // 3. APLICAR VIDA Y EFECTOS FINALES
             // ==========================================
             double total = 20.0 + extraVida;
-            if (p.getAttribute(Attribute.GENERIC_MAX_HEALTH).getBaseValue() != total) {
-                p.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(total);
+
+            // En 1.21.11, usamos MAX_HEALTH directamente
+            var healthAttr = p.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);
+            if (healthAttr != null && healthAttr.getBaseValue() != total) {
+                healthAttr.setBaseValue(total);
 
                 // ¡LA MAGIA ANTI-PANTALLA LLENA!
                 p.setHealthScaled(true);
-                p.setHealthScale(20.0); // Siempre dibuja solo 10 corazones (20.0 visual)
+                p.setHealthScale(20.0); // Dibuja 10 corazones (20.0 visual)
             }
 
             if (velMineria > 0) {
