@@ -1,0 +1,47 @@
+herramientas:
+  # ==========================================
+  # ⛏️ HERRAMIENTA BÁSICA (Pico Normal)
+  # ==========================================
+  pico_novato:
+    nombre: "&7Pico del Novato"
+    nexo_id: "pico_novato_3d" # El ID del modelo 3D en la configuración de tu plugin Nexo
+    material: "STONE_PICKAXE" # Si Nexo no carga, el servidor te dará este ítem de emergencia
+    rareza: "&7COMÚN"
+    profesion: "Minería"
+    tier: 1
+    nivel_requerido: 1
+    velocidad_base: 2.0 # Velocidad de minería nativa en 1.21.1
+    multiplicador_fortuna: 0.0 # Porcentaje extra de drops dobles
+    habilidad_id: "ninguna"
+
+  # ==========================================
+  # ⚙️ HERRAMIENTA AVANZADA (Taladro: Funciona como Pico y Pala)
+  # ==========================================
+  taladro_mitril:
+    nombre: "&eTaladro de Mitril"
+    nexo_id: "taladro_mitril_3d"
+    material: "GOLDEN_PICKAXE"
+    rareza: "&eÉPICO"
+    # IMPORTANTE: Al ser "Minería" y Tier 3 o superior, el código de ItemManager
+    # le inyectará los DataComponents de la 1.21 para que rompa tierra y piedra a la vez.
+    profesion: "Minería"
+    tier: 3
+    nivel_requerido: 20
+    velocidad_base: 45.0
+    multiplicador_fortuna: 15.0 # Te da +15% de probabilidad de mineral doble
+    habilidad_id: "sobrecarga"
+
+  # ==========================================
+  # 🌱 HERRAMIENTA EVOLUTIVA (Cambia de nombre al romper bloques)
+  # ==========================================
+  azada_matematica:
+    nombre: "&dAzada Matemática"
+    nexo_id: "azada_mate_3d"
+    material: "NETHERITE_HOE"
+    rareza: "&dMÍTICO"
+    profesion: "Agricultura"
+    tier: 5
+    nivel_requerido: 50
+    velocidad_base: 100.0
+    multiplicador_fortuna: 35.0
+    habilidad_id: "cosecha_cuantica"

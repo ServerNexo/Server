@@ -6,9 +6,11 @@ import io.papermc.paper.datacomponent.item.Tool;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Tag;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.attribute.AttributeModifier.Operation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -118,13 +120,12 @@ public class ItemManager {
         meta.getPersistentDataContainer().set(llaveBloquesRotos, PersistentDataType.INTEGER, 0);
         item.setItemMeta(meta);
 
-        // 🚀 MAGIA DE PAPER 1.21: Taladros = Pico + Pala simultáneamente
+        // 🚀 MAGIA 1.21: Taladros = Pico + Pala simultáneamente (Vía ToolComponent)
         if (dto.esTaladro()) {
-            Tool.Rule shovelRule = Tool.Rule.mineables(Tag.MINEABLE_SHOVEL, (float) dto.velocidadBase(), true);
-            Tool.Rule pickaxeRule = Tool.Rule.mineables(Tag.MINEABLE_PICKAXE, (float) dto.velocidadBase(), true);
-
-            Tool toolComponent = Tool.tool(List.of(shovelRule, pickaxeRule), 1.0f, 1);
-            item.setData(DataComponentTypes.TOOL, toolComponent);
+            org.bukkit.inventory.meta.components.ToolComponent tool = meta.getTool();
+            tool.addRule(org.bukkit.Tag.MINEABLE_SHOVEL, (float) dto.velocidadBase(), true);
+            tool.addRule(org.bukkit.Tag.MINEABLE_PICKAXE, (float) dto.velocidadBase(), true);
+            meta.setTool(tool);
         }
 
         return item;
@@ -169,17 +170,28 @@ public class ItemManager {
         meta.getPersistentDataContainer().set(llaveWeaponId, PersistentDataType.STRING, dto.id());
         meta.getPersistentDataContainer().set(llaveWeaponPrestige, PersistentDataType.INTEGER, 0);
 
-        // Atributos Nativos 1.21.11
+        // ⚔️ Atributos Nativos - Versión Finalísima 1.21.11
+
+        // Daño de Ataque
         NamespacedKey dmgKey = new NamespacedKey(pluginMemoria, "nexo_dmg_" + dto.id());
         org.bukkit.attribute.AttributeModifier dmgMod = new org.bukkit.attribute.AttributeModifier(
-                dmgKey, dto.danioBase(), org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER, org.bukkit.inventory.EquipmentSlotGroup.MAINHAND);
-        meta.addAttributeModifier(org.bukkit.attribute.Attribute.GENERIC_ATTACK_DAMAGE, dmgMod);
+                dmgKey,
+                dto.danioBase(),
+                Operation.ADD_NUMBER, // ⬅️ Prueba con ADD_NUMBER primero
+                org.bukkit.inventory.EquipmentSlotGroup.MAINHAND
+        );
+        meta.addAttributeModifier(org.bukkit.attribute.Attribute.ATTACK_DAMAGE, dmgMod);
 
+        // Velocidad de Ataque
         NamespacedKey spdKey = new NamespacedKey(pluginMemoria, "nexo_spd_" + dto.id());
         double speedOffset = dto.velocidadAtaque() - 4.0;
         org.bukkit.attribute.AttributeModifier spdMod = new org.bukkit.attribute.AttributeModifier(
-                spdKey, speedOffset, org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER, org.bukkit.inventory.EquipmentSlotGroup.MAINHAND);
-        meta.addAttributeModifier(org.bukkit.attribute.Attribute.GENERIC_ATTACK_SPEED, spdMod);
+                spdKey,
+                speedOffset,
+                Operation.ADD_NUMBER, // ⬅️ Si ADD_NUMBER sale rojo, cámbialo a ADDITION
+                org.bukkit.inventory.EquipmentSlotGroup.MAINHAND
+        );
+        meta.addAttributeModifier(org.bukkit.attribute.Attribute.ATTACK_SPEED, spdMod);
 
         meta.addItemFlags(org.bukkit.inventory.ItemFlag.HIDE_ATTRIBUTES);
         item.setItemMeta(meta);

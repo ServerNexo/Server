@@ -100,7 +100,8 @@ public class BlockBreakListener implements Listener {
                         fortunaExtra = toolData.multiplicadorFortuna();
 
                         // Actualizar Bloques Rotos
-                        int rotos = metaTool.getPersistentDataContainer().getOrDefault(ItemManager.llaveBloquesRotos, PersistentDataType.INTEGER, 0) + 1;
+                        Integer rotosGuardados = metaTool.getPersistentDataContainer().get(ItemManager.llaveBloquesRotos, PersistentDataType.INTEGER);
+                        int rotos = (rotosGuardados != null ? rotosGuardados : 0) + 1;
                         metaTool.getPersistentDataContainer().set(ItemManager.llaveBloquesRotos, PersistentDataType.INTEGER, rotos);
 
                         // Evolución Azada Matemática

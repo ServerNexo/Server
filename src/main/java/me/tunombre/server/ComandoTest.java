@@ -27,6 +27,24 @@ public class ComandoTest implements CommandExecutor {
         }
 
         // ==========================================
+        // ⛏️ MODO INVOCACIÓN DE HERRAMIENTAS (Ej: /test tool pico_novato)
+        // ==========================================
+        if (args.length == 2 && args[0].equalsIgnoreCase("tool")) {
+            String idHerramienta = args[1].toLowerCase();
+            ItemStack herramienta = ItemManager.generarHerramientaProfesion(idHerramienta);
+
+            // Si devuelve un pico de madera sin nombre, es que falló
+            if (herramienta.getType() == Material.WOODEN_PICKAXE && !herramienta.getItemMeta().hasDisplayName()) {
+                p.sendMessage("§c[!] Error: No se encontró '" + idHerramienta + "' en herramientas.yml");
+                return true;
+            }
+
+            p.getInventory().addItem(herramienta);
+            p.sendMessage("§a✨ ¡Has invocado la herramienta: §e" + idHerramienta + "§a!");
+            return true;
+        }
+
+        // ==========================================
         // ⚔️ MODO INVOCACIÓN DE ARMAS (Ej: /test arma dagas_espinas_t1)
         // ==========================================
         if (args.length == 2 && args[0].equalsIgnoreCase("arma")) {
@@ -72,6 +90,7 @@ public class ComandoTest implements CommandExecutor {
         // ⚙️ MODO NORMAL (Sin argumentos)
         // ==========================================
         p.sendMessage("§6§l=== PANEL DE DESARROLLADOR NEXO ===");
+        p.sendMessage("§e/test tool <ID> §7- Invoca una herramienta (Ej: /test tool pico_novato)");
         p.sendMessage("§e/test arma <ID> §7- Invoca un arma (Ej: /test arma dagas_espinas_t1)");
         p.sendMessage("§e/test <ID> §7- Invoca una armadura (Ej: /test agri_t7)");
         p.sendMessage("§e/test §7- Abre el menú de Herrería y da Polvos");
