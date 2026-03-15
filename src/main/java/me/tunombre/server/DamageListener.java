@@ -5,6 +5,7 @@ import dev.aurelium.auraskills.api.skill.Skills;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -24,7 +25,68 @@ public class DamageListener implements Listener {
 
     @EventHandler
     public void alPegar(EntityDamageByEntityEvent event) {
-        // Solo nos importa si un jugador golpea a una entidad viva (mobs o jugadores)
+
+        // ==========================================
+        // 🛡️ LÓGICA DE DEFENSA Y ARMADURA (Si la víctima es un Jugador)
+        // ==========================================
+        if (event.getEntity() instanceof Player victima) {
+            double probEvasion = 0.0;
+            double reflejoEspinosa = 0.0;
+            double defensaExtra = 0.0;
+
+            // Escaneamos la armadura que lleva puesta
+            for (ItemStack armor : victima.getInventory().getArmorContents()) {
+                if (armor == null || !armor.hasItemMeta()) continue;
+                var pdc = armor.getItemMeta().getPersistentDataContainer();
+
+                // 1. Calcular mitigación de daño basada en el Tier/Vida de la armadura
+                if (pdc.has(ItemManager.llaveArmaduraId, PersistentDataType.STRING)) {
+                    ArmorDTO dto = plugin.getFileManager().getArmorDTO(pdc.get(ItemManager.llaveArmaduraId, PersistentDataType.STRING));
+                    if (dto != null) {
+                        // Por cada 10 puntos de "Vida Extra" que da la armadura, reducimos 1 punto de daño real
+                        defensaExtra += (dto.vidaExtra() / 10.0);
+                    }
+                }
+
+                // 2. Leer Encantamiento: Evasión
+                String idEv = "evasion";
+                org.bukkit.NamespacedKey keyEv = new org.bukkit.NamespacedKey(plugin, "nexo_enchant_" + idEv);
+                if (pdc.has(keyEv, PersistentDataType.INTEGER)) {
+                    EnchantDTO ench = plugin.getFileManager().getEnchantDTO(idEv);
+                    if (ench != null) probEvasion += ench.getValorPorNivel(pdc.get(keyEv, PersistentDataType.INTEGER));
+                }
+
+                // 3. Leer Encantamiento: Coraza Espinosa
+                String idEsp = "coraza_espinosa";
+                org.bukkit.NamespacedKey keyEsp = new org.bukkit.NamespacedKey(plugin, "nexo_enchant_" + idEsp);
+                if (pdc.has(keyEsp, PersistentDataType.INTEGER)) {
+                    EnchantDTO ench = plugin.getFileManager().getEnchantDTO(idEsp);
+                    if (ench != null) reflejoEspinosa += ench.getValorPorNivel(pdc.get(keyEsp, PersistentDataType.INTEGER));
+                }
+            }
+
+            // Aplicar Evasión Mágica
+            if (probEvasion > 0 && Math.random() * 100 <= probEvasion) {
+                event.setCancelled(true);
+                victima.sendMessage("§f§l¡EVASIÓN!");
+                victima.playSound(victima.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1f, 2f);
+                return;
+            }
+
+            // Aplicar Mitigación de Daño
+            double danioReducido = Math.max(1.0, event.getDamage() - defensaExtra); // Nunca baja de 1 de daño
+            event.setDamage(danioReducido);
+
+            // Aplicar Coraza Espinosa
+            if (reflejoEspinosa > 0 && event.getDamager() instanceof LivingEntity atacante) {
+                double danioDevuelto = danioReducido * (reflejoEspinosa / 100.0);
+                atacante.damage(danioDevuelto, victima);
+            }
+        }
+
+        // ==========================================
+        // ⚔️ LÓGICA DE ATAQUE (Si el atacante es un Jugador)
+        // ==========================================
         if (event.getDamager() instanceof Player jugador && event.getEntity() instanceof LivingEntity victima) {
 
             ItemStack arma = jugador.getInventory().getItemInMainHand();
@@ -32,9 +94,6 @@ public class DamageListener implements Listener {
 
             var pdc = arma.getItemMeta().getPersistentDataContainer();
 
-            // ==========================================
-            // ⚔️ SISTEMA DE ARMAS RPG NEXOCORE
-            // ==========================================
             if (pdc.has(ItemManager.llaveWeaponId, PersistentDataType.STRING)) {
                 String idArma = pdc.get(ItemManager.llaveWeaponId, PersistentDataType.STRING);
                 WeaponDTO dto = plugin.getFileManager().getWeaponDTO(idArma);
@@ -50,7 +109,7 @@ public class DamageListener implements Listener {
                     if (!dto.claseRequerida().equalsIgnoreCase("Cualquiera") && !dto.claseRequerida().equalsIgnoreCase(claseJugador)) {
                         jugador.sendMessage("§c§l⚠ §cTu clase (" + claseJugador + ") no puede usar esta arma.");
                         jugador.playSound(jugador.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
-                        event.setDamage(1.0); // Daño de castigo mínimo
+                        event.setDamage(1.0); // Daño de castigo
                         return;
                     }
 
@@ -61,15 +120,53 @@ public class DamageListener implements Listener {
                         return;
                     }
 
-                    // 2. DAÑO BASE
-                    // Paper 1.21.11 ya sumó el daño del WeaponDTO al golpe usando el AttributeModifier
-                    // Así que el daño "crudo" ya viene perfecto en el evento.
+                    // 2. DAÑO BASE (Ya viene calculado gracias a la 1.21.11)
                     double dañoFinal = event.getDamage();
 
-                    // 3. MULTIPLICADOR DE PRESTIGIO (Ej: +15% de daño por nivel)
+                    // 3. MULTIPLICADOR DE PRESTIGIO
                     int prestigio = pdc.getOrDefault(ItemManager.llaveWeaponPrestige, PersistentDataType.INTEGER, 0);
                     if (prestigio > 0 && dto.permitePrestigio()) {
                         dañoFinal += (dañoFinal * (prestigio * dto.multiPrestigio()));
+                    }
+
+                    // ==========================================
+                    // 🪄 LECTURA DE ENCANTAMIENTOS OFENSIVOS
+                    // ==========================================
+
+                    // -- Ejecutor --
+                    String idEjecutor = "ejecutor";
+                    org.bukkit.NamespacedKey keyEjecutor = new org.bukkit.NamespacedKey(plugin, "nexo_enchant_" + idEjecutor);
+                    if (pdc.has(keyEjecutor, PersistentDataType.INTEGER)) {
+                        double maxHp = victima.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
+                        if ((victima.getHealth() / maxHp) <= 0.20) { // Si tiene menos del 20% de vida
+                            EnchantDTO ench = plugin.getFileManager().getEnchantDTO(idEjecutor);
+                            if (ench != null) {
+                                double bono = ench.getValorPorNivel(pdc.get(keyEjecutor, PersistentDataType.INTEGER));
+                                dañoFinal += (dañoFinal * (bono / 100.0));
+                            }
+                        }
+                    }
+
+                    // -- Cazador --
+                    String idCazador = "cazador";
+                    org.bukkit.NamespacedKey keyCazador = new org.bukkit.NamespacedKey(plugin, "nexo_enchant_" + idCazador);
+                    if (pdc.has(keyCazador, PersistentDataType.INTEGER) && victima instanceof Monster) {
+                        EnchantDTO ench = plugin.getFileManager().getEnchantDTO(idCazador);
+                        if (ench != null) {
+                            double bono = ench.getValorPorNivel(pdc.get(keyCazador, PersistentDataType.INTEGER));
+                            dañoFinal += (dañoFinal * (bono / 100.0));
+                        }
+                    }
+
+                    // -- Veneno Mortal --
+                    String idVeneno = "veneno";
+                    org.bukkit.NamespacedKey keyVeneno = new org.bukkit.NamespacedKey(plugin, "nexo_enchant_" + idVeneno);
+                    if (pdc.has(keyVeneno, PersistentDataType.INTEGER)) {
+                        EnchantDTO ench = plugin.getFileManager().getEnchantDTO(idVeneno);
+                        if (ench != null) {
+                            int duracionTicks = (int) (ench.getValorPorNivel(pdc.get(keyVeneno, PersistentDataType.INTEGER)) * 20);
+                            victima.addPotionEffect(new PotionEffect(PotionEffectType.POISON, duracionTicks, 0, false, false, false));
+                        }
                     }
 
                     // 4. DAÑO Y EFECTOS ELEMENTALES
@@ -78,7 +175,7 @@ public class DamageListener implements Listener {
                     double multElemental = 1.0;
 
                     if (elementoLimpio.contains("FUEGO") || elementoLimpio.contains("MAGMA") || elementoLimpio.contains("SOLAR")) {
-                        victima.setFireTicks(60); // Quema 3 segundos
+                        victima.setFireTicks(60);
                         if (nombreMob.contains("[HIELO]")) multElemental = 2.0;
                     }
                     else if (elementoLimpio.contains("HIELO") || elementoLimpio.contains("AGUA")) {
@@ -89,9 +186,6 @@ public class DamageListener implements Listener {
                         if (Math.random() <= 0.15) victima.getWorld().strikeLightningEffect(victima.getLocation());
                         if (nombreMob.contains("[AGUA]")) multElemental = 2.0;
                     }
-                    else if (elementoLimpio.contains("VENENO")) {
-                        victima.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 60, 1, false, false, false));
-                    }
 
                     dañoFinal *= multElemental;
 
@@ -99,8 +193,23 @@ public class DamageListener implements Listener {
                         jugador.sendMessage("§a§l¡GOLPE CRÍTICO ELEMENTAL!");
                     }
 
-                    // Aplicar el daño masivo RPG final
+                    // APLICAR EL DAÑO FINAL
                     event.setDamage(dañoFinal);
+
+                    // 5. VAMPIRISMO (Se calcula con el daño final real)
+                    String idVamp = "vampirismo";
+                    org.bukkit.NamespacedKey keyVamp = new org.bukkit.NamespacedKey(plugin, "nexo_enchant_" + idVamp);
+                    if (pdc.has(keyVamp, PersistentDataType.INTEGER)) {
+                        EnchantDTO ench = plugin.getFileManager().getEnchantDTO(idVamp);
+                        if (ench != null) {
+                            double porcentaje = ench.getValorPorNivel(pdc.get(keyVamp, PersistentDataType.INTEGER));
+                            double cura = dañoFinal * (porcentaje / 100.0);
+                            double maxVidaJugador = jugador.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
+
+                            jugador.setHealth(Math.min(maxVidaJugador, jugador.getHealth() + cura));
+                            jugador.getWorld().spawnParticle(org.bukkit.Particle.HEART, jugador.getLocation().add(0, 1, 0), 1);
+                        }
+                    }
                 }
             }
         }

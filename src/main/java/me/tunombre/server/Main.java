@@ -48,6 +48,9 @@ public class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CraftingListener(this), this);
         getServer().getPluginManager().registerEvents(new ReforjaListener(this), this);
         getServer().getPluginManager().registerEvents(new YunqueListener(this), this);
+        // Iniciar Sistema de Artefactos
+        me.tunombre.server.artefactos.ArtefactoManager artefactoManager = new me.tunombre.server.artefactos.ArtefactoManager(this);
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.artefactos.ArtefactoListener(this, artefactoManager), this);
 
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new NexoExpansion(this).register();
@@ -96,6 +99,10 @@ public class Main extends JavaPlugin {
     @Override
     public void onDisable() {
         if (databaseManager != null) databaseManager.desconectar();
+
+        // 🚨 ACTIVA EL FAILSAFE ANTES DE APAGARSE 🚨
+        BlockBreakListener.restaurarBloquesRotos();
+        getLogger().info("Bloques del Nexo restaurados exitosamente.");
     }
 
     public DatabaseManager getDatabaseManager() { return databaseManager; }
