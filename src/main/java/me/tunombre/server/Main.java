@@ -12,6 +12,9 @@ public class Main extends JavaPlugin {
     private DatabaseManager databaseManager;
     private FileManager fileManager;
 
+    // 🌟 NUEVO: Gestor de configuración de Colecciones y Slayers
+    private me.tunombre.server.colecciones.ColeccionesConfig coleccionesConfig;
+
     // Motores Públicos
     public me.tunombre.server.minigames.CombatComboManager combatComboManager;
     public me.tunombre.server.pvp.PvPManager pvpManager;
@@ -40,6 +43,14 @@ public class Main extends JavaPlugin {
         databaseManager = new DatabaseManager(this);
         databaseManager.conectar();
         ItemManager.init(this);
+
+        // ==========================================
+        // 🌟 SISTEMA DE COLECCIONES Y SLAYERS
+        // ==========================================
+        this.coleccionesConfig = new me.tunombre.server.colecciones.ColeccionesConfig(this);
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.colecciones.ColeccionesListener(this), this);
+        // Iniciamos el FlushTask asíncrono para que guarde en Supabase cada 10 minutos (12000 ticks)
+        new me.tunombre.server.colecciones.FlushTask(databaseManager.getDataSource()).runTaskTimerAsynchronously(this, 12000L, 12000L);
 
         // Comandos base
         getCommand("test").setExecutor(new ComandoTest(this));
@@ -178,6 +189,12 @@ public class Main extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // 🚨 FORZAR GUARDADO DE COLECCIONES ANTES DE APAGAR 🚨
+        if (databaseManager != null && databaseManager.getDataSource() != null) {
+            new me.tunombre.server.colecciones.FlushTask(databaseManager.getDataSource()).run();
+            getLogger().info("Colecciones y Slayers guardados en Supabase correctamente.");
+        }
+
         // 🚨 FORZAR GUARDADO DE TODOS LOS JUGADORES ONLINE ANTES DE APAGAR 🚨
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (databaseManager != null) {
@@ -189,6 +206,11 @@ public class Main extends JavaPlugin {
 
         BlockBreakListener.restaurarBloquesRotos();
         getLogger().info("Bloques del Nexo restaurados exitosamente y datos guardados.");
+    }
+
+    // Getter para la configuración dinámica de colecciones
+    public me.tunombre.server.colecciones.ColeccionesConfig getColeccionesConfig() {
+        return coleccionesConfig;
     }
 
     public DatabaseManager getDatabaseManager() { return databaseManager; }
