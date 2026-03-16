@@ -66,11 +66,6 @@ public class Main extends JavaPlugin {
         }
         getServer().getPluginManager().registerEvents(new me.tunombre.server.mochilas.MochilaListener(mochilaManager), this);
 
-        // Integración PlaceholderAPI
-        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            new NexoExpansion(this).register();
-        }
-
         // ==========================================
         // 👕 SISTEMA DE GUARDARROPA
         // ==========================================
@@ -80,6 +75,17 @@ public class Main extends JavaPlugin {
             getCommand("wardrobe").setExecutor(new me.tunombre.server.guardarropa.ComandoWardrobe(guardarropaListener));
         }
         getServer().getPluginManager().registerEvents(guardarropaListener, this);
+
+        // ==========================================
+        // 🌟 MOTOR DE HABILIDADES PASIVAS (Core 7)
+        // ==========================================
+        me.tunombre.server.pasivas.PasivasManager pasivasManager = new me.tunombre.server.pasivas.PasivasManager(this);
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.pasivas.PasivasListener(this, pasivasManager), this);
+
+        // Integración PlaceholderAPI
+        if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            new NexoExpansion(this).register();
+        }
 
         // Tarea del HUD (Energía, Maná y Vida)
         Bukkit.getScheduler().runTaskTimer(this, () -> {
@@ -119,7 +125,7 @@ public class Main extends JavaPlugin {
 
         new ArmorTask(this).runTaskTimer(this, 10L, 10L);
 
-        getLogger().info("¡Nexo Core V3: Integración de Artefactos y Mochilas Completada!");
+        getLogger().info("¡Nexo Core V4: Motor de Pasivas RPG Integrado!");
     }
 
     @Override
