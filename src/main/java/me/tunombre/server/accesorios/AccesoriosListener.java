@@ -1,6 +1,7 @@
 package me.tunombre.server.accesorios;
 
 import me.tunombre.server.Main;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -57,9 +58,29 @@ public class AccesoriosListener implements Listener {
     @EventHandler
     public void alHacerClic(InventoryClickEvent event) {
         if (event.getView().getTitle().equals(TITULO_BOLSA)) {
-            ItemStack item = event.getCurrentItem();
-            // Evitar que muevan los cristales de bloqueo
-            if (item != null && item.hasItemMeta() && item.getItemMeta().getDisplayName().equals("§c§l🔒 Slot Bloqueado")) {
+            ItemStack currentItem = event.getCurrentItem();
+
+            // PROTECCIÓN 1: Evitar clics directos sobre los cristales de bloqueo
+            if (currentItem != null && currentItem.getType() == Material.RED_STAINED_GLASS_PANE) {
+                event.setCancelled(true);
+                return;
+            }
+
+            // PROTECCIÓN 2: Evitar trucos con teclas de números (Hotbar Swap) hacia slots bloqueados
+            if (event.getClick().name().contains("NUMBER_KEY")) {
+                int slotDestino = event.getRawSlot();
+                // Si están apuntando al inventario de arriba y está bloqueado
+                if (slotDestino < event.getView().getTopInventory().getSize()) {
+                    ItemStack slotItem = event.getView().getTopInventory().getItem(slotDestino);
+                    if (slotItem != null && slotItem.getType() == Material.RED_STAINED_GLASS_PANE) {
+                        event.setCancelled(true);
+                        return;
+                    }
+                }
+            }
+
+            // PROTECCIÓN 3: Evitar Shift-Clicks extraños que metan cristales
+            if (event.isShiftClick() && currentItem != null && currentItem.getType() == Material.RED_STAINED_GLASS_PANE) {
                 event.setCancelled(true);
             }
         }
@@ -73,17 +94,15 @@ public class AccesoriosListener implements Listener {
         Player p = event.getPlayer();
         Map<AccessoryDTO.StatType, Double> stats = event.getStats();
 
-        // Aplicamos Vida
+        // 1. Aplicamos Atributos Nativos de Bukkit
         aplicarAtributo(p, Attribute.MAX_HEALTH, keyVida, stats.getOrDefault(AccessoryDTO.StatType.VIDA, 0.0));
-        // Aplicamos Fuerza (Ataque Genérico)
         aplicarAtributo(p, Attribute.ATTACK_DAMAGE, keyFuerza, stats.getOrDefault(AccessoryDTO.StatType.FUERZA, 0.0));
-        // Aplicamos Velocidad
         aplicarAtributo(p, Attribute.MOVEMENT_SPEED, keyVelocidad, stats.getOrDefault(AccessoryDTO.StatType.VELOCIDAD, 0.0));
-        // Aplicamos Armadura Genérica
         aplicarAtributo(p, Attribute.ARMOR, keyArmadura, stats.getOrDefault(AccessoryDTO.StatType.ARMADURA, 0.0));
 
-        // El stat de Energía Custom no usa Atributos de Bukkit, lo gestionamos desde el límite en Main.java
-        // Puedes guardar el Max Energía extra en un HashMap temporal si lo requieres.
+        // 2. Aplicamos Energía Custom (El FIX Mágico ✨)
+        int energiaExtra = stats.getOrDefault(AccessoryDTO.StatType.ENERGIA_CUSTOM, 0.0).intValue();
+        plugin.energiaExtraAccesorios.put(p.getUniqueId(), energiaExtra);
 
         p.sendMessage("§b✨ El Poder del Nexo de tus accesorios resuena: §l" + event.getNexoPower() + " PX");
     }
@@ -92,14 +111,14 @@ public class AccesoriosListener implements Listener {
         AttributeInstance instancia = p.getAttribute(atributo);
         if (instancia == null) return;
 
-        // 1. Limpieza de modificadores anteriores para evitar bug de stats infinitos
+        // Limpieza de modificadores anteriores para evitar bug de stats infinitos
         for (AttributeModifier mod : instancia.getModifiers()) {
             if (mod.getKey().equals(key)) {
                 instancia.removeModifier(mod);
             }
         }
 
-        // 2. Si hay un valor que agregar, lo añadimos
+        // Si hay un valor que agregar, lo añadimos
         if (valor > 0) {
             AttributeModifier modificador = new AttributeModifier(key, valor, AttributeModifier.Operation.ADD_NUMBER);
             instancia.addModifier(modificador);

@@ -14,7 +14,7 @@ public class Main extends JavaPlugin {
 
     // Motores Públicos
     public me.tunombre.server.minigames.CombatComboManager combatComboManager;
-    public me.tunombre.server.pvp.PvPManager pvpManager; // Nuevo Motor Público
+    public me.tunombre.server.pvp.PvPManager pvpManager;
 
     // 🛡️ RAM: Variables concurrentes seguras
     public ConcurrentHashMap<UUID, Integer> nexoNiveles = new ConcurrentHashMap<>();
@@ -26,6 +26,9 @@ public class Main extends JavaPlugin {
     public ConcurrentHashMap<UUID, Integer> agriculturaNiveles = new ConcurrentHashMap<>();
     public ConcurrentHashMap<UUID, Integer> agriculturaXp = new ConcurrentHashMap<>();
     public ConcurrentHashMap<UUID, Integer> energiaMineria = new ConcurrentHashMap<>();
+
+    // ⚡ NUEVO: Energía extra otorgada por los Accesorios
+    public ConcurrentHashMap<UUID, Integer> energiaExtraAccesorios = new ConcurrentHashMap<>();
 
     // 💧 MANÁ ELIMINADO DE LA RAM: Ahora lo controla AuraSkills directamente.
     public ConcurrentHashMap<UUID, String> claseJugador = new ConcurrentHashMap<>();
@@ -126,9 +129,9 @@ public class Main extends JavaPlugin {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 UUID id = p.getUniqueId();
 
-                // 1. Energía
+                // 1. Energía (Ahora suma la energía extra de los accesorios)
                 int nivelNexo = nexoNiveles.getOrDefault(id, 1);
-                int maxEnergia = 100 + ((nivelNexo - 1) * 20);
+                int maxEnergia = 100 + ((nivelNexo - 1) * 20) + energiaExtraAccesorios.getOrDefault(id, 0);
                 int energiaActual = energiaMineria.getOrDefault(id, maxEnergia);
 
                 if (energiaActual < maxEnergia) {
@@ -159,7 +162,7 @@ public class Main extends JavaPlugin {
                     hud = "§4§l[FRENESÍ ACTIVO] " + hud;
                 }
 
-                // Indicador de Combate PvP (Añadido)
+                // Indicador de Combate PvP
                 if (pvpManager != null && pvpManager.estaEnCombate(p)) {
                     hud = "§c⚔ §l¡EN COMBATE! §r" + hud;
                 }
@@ -168,17 +171,24 @@ public class Main extends JavaPlugin {
             }
         }, 20L, 20L);
 
-        new ArmorTask(this).runTaskTimer(this, 10L, 10L);
+        getServer().getPluginManager().registerEvents(new ArmorListener(this), this);
 
-        getLogger().info("¡Nexo Core V8: PvP y Sistema de Honor Integrados!");
+        getLogger().info("¡Nexo Core V8.1: Core Optimizado y Parcheado!");
     }
 
     @Override
     public void onDisable() {
+        // 🚨 FORZAR GUARDADO DE TODOS LOS JUGADORES ONLINE ANTES DE APAGAR 🚨
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (databaseManager != null) {
+                databaseManager.guardarJugador(p);
+            }
+        }
+
         if (databaseManager != null) databaseManager.desconectar();
 
         BlockBreakListener.restaurarBloquesRotos();
-        getLogger().info("Bloques del Nexo restaurados exitosamente.");
+        getLogger().info("Bloques del Nexo restaurados exitosamente y datos guardados.");
     }
 
     public DatabaseManager getDatabaseManager() { return databaseManager; }
