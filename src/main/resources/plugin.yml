@@ -12,6 +12,12 @@ commands:
     permission: nexo.admin
   desguace:
     description: Abre el menu de reciclaje
+  pv:
+    description: Abre tu mochila virtual
+    aliases: [ mochila, vault ]
+  wardrobe:
+    description: Abre tu guardarropa personal
+    aliases: [ guardarropa, ropero ]
 libraries:
   - com.zaxxer:HikariCP:5.1.0
   - org.postgresql:postgresql:42.7.2

@@ -34,10 +34,12 @@ public class Main extends JavaPlugin {
         databaseManager.conectar();
         ItemManager.init(this);
 
+        // Comandos base
         getCommand("test").setExecutor(new ComandoTest(this));
         getCommand("nexo").setExecutor(new ComandoNexo(this));
         getCommand("desguace").setExecutor(new ComandoDesguace(this));
 
+        // Listeners base
         getServer().getPluginManager().registerEvents(new DesguaceListener(this), this);
         getServer().getPluginManager().registerEvents(new DamageListener(this), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
@@ -48,14 +50,38 @@ public class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CraftingListener(this), this);
         getServer().getPluginManager().registerEvents(new ReforjaListener(this), this);
         getServer().getPluginManager().registerEvents(new YunqueListener(this), this);
-        // Iniciar Sistema de Artefactos
+
+        // ==========================================
+        // 🪄 SISTEMA DE ARTEFACTOS
+        // ==========================================
         me.tunombre.server.artefactos.ArtefactoManager artefactoManager = new me.tunombre.server.artefactos.ArtefactoManager(this);
         getServer().getPluginManager().registerEvents(new me.tunombre.server.artefactos.ArtefactoListener(this, artefactoManager), this);
 
+        // ==========================================
+        // 🎒 SISTEMA DE MOCHILAS
+        // ==========================================
+        me.tunombre.server.mochilas.MochilaManager mochilaManager = new me.tunombre.server.mochilas.MochilaManager(this);
+        if (getCommand("pv") != null) {
+            getCommand("pv").setExecutor(new me.tunombre.server.mochilas.ComandoPV(mochilaManager));
+        }
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.mochilas.MochilaListener(mochilaManager), this);
+
+        // Integración PlaceholderAPI
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new NexoExpansion(this).register();
         }
 
+        // ==========================================
+        // 👕 SISTEMA DE GUARDARROPA
+        // ==========================================
+        me.tunombre.server.guardarropa.GuardarropaManager guardarropaManager = new me.tunombre.server.guardarropa.GuardarropaManager(this);
+        me.tunombre.server.guardarropa.GuardarropaListener guardarropaListener = new me.tunombre.server.guardarropa.GuardarropaListener(guardarropaManager);
+        if (getCommand("wardrobe") != null) {
+            getCommand("wardrobe").setExecutor(new me.tunombre.server.guardarropa.ComandoWardrobe(guardarropaListener));
+        }
+        getServer().getPluginManager().registerEvents(guardarropaListener, this);
+
+        // Tarea del HUD (Energía, Maná y Vida)
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 UUID id = p.getUniqueId();
@@ -93,7 +119,7 @@ public class Main extends JavaPlugin {
 
         new ArmorTask(this).runTaskTimer(this, 10L, 10L);
 
-        getLogger().info("¡Nexo Core V3: Integración de Maná de AuraSkills Completada!");
+        getLogger().info("¡Nexo Core V3: Integración de Artefactos y Mochilas Completada!");
     }
 
     @Override

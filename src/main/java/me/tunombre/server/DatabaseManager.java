@@ -25,9 +25,6 @@ public class DatabaseManager {
         config.setUsername(plugin.getConfig().getString("database.username"));
         config.setPassword(plugin.getConfig().getString("database.password"));
 
-        // ==========================================
-        // ¡LA LÍNEA MÁGICA QUE SOLUCIONA EL ERROR!
-        // ==========================================
         config.setDriverClassName("org.postgresql.Driver");
 
         config.setMaximumPoolSize(10);
@@ -37,7 +34,7 @@ public class DatabaseManager {
         config.setConnectionTimeout(10000);
 
         dataSource = new HikariDataSource(config);
-        crearTabla();
+        crearTabla(); // ⬅️ Aquí llamamos a la creación de tablas
     }
 
     public void desconectar() {
@@ -50,9 +47,12 @@ public class DatabaseManager {
         return dataSource.getConnection();
     }
 
+    // ==========================================
+    // 🗄️ CREACIÓN DE MÚLTIPLES TABLAS (Actualizado)
+    // ==========================================
     private void crearTabla() {
-        // ¡NUEVA ESTRUCTURA DE LA TABLA!
-        String sql = "CREATE TABLE IF NOT EXISTS jugadores (" +
+        // 1. Tabla de Jugadores Clásica (XP y Niveles)
+        String sqlJugadores = "CREATE TABLE IF NOT EXISTS jugadores (" +
                 "uuid VARCHAR(36) PRIMARY KEY," +
                 "nombre VARCHAR(16) NOT NULL," +
                 "nexo_nivel INT DEFAULT 1," +
@@ -65,16 +65,40 @@ public class DatabaseManager {
                 "agricultura_xp INT DEFAULT 0" +
                 ");";
 
+        // 2. NUEVA: Tabla de Mochilas
+        // Usamos PRIMARY KEY(uuid, mochila_id) para que un jugador pueda tener varias mochilas (ej: la mochila 1, la mochila 2)
+        String sqlMochilas = "CREATE TABLE IF NOT EXISTS mochilas (" +
+                "uuid VARCHAR(36)," +
+                "mochila_id INT," +
+                "contenido TEXT," +
+                "PRIMARY KEY (uuid, mochila_id)" +
+                ");";
+
+        // 3. NUEVA: Tabla del Guardarropa
+        // Mismo sistema, permitimos guardar varios "presets" de armadura
+        String sqlGuardarropa = "CREATE TABLE IF NOT EXISTS guardarropa (" +
+                "uuid VARCHAR(36)," +
+                "preset_id INT," +
+                "contenido TEXT," +
+                "PRIMARY KEY (uuid, preset_id)" +
+                ");";
+
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = getConnection();
-                 PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.execute();
+                 java.sql.Statement stmt = conn.createStatement()) {
+                // Ejecutamos las 3 creaciones al arrancar el servidor
+                stmt.execute(sqlJugadores);
+                stmt.execute(sqlMochilas);
+                stmt.execute(sqlGuardarropa);
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         });
     }
 
+    // ==========================================
+    // 👤 GESTIÓN DE JUGADOR (Mantenida Intacta)
+    // ==========================================
     public void cargarJugador(Player player) {
         String selectSQL = "SELECT * FROM jugadores WHERE uuid = ?";
         String insertSQL = "INSERT INTO jugadores (uuid, nombre, nexo_nivel, nexo_xp, combate_nivel, combate_xp, mineria_nivel, mineria_xp, agricultura_nivel, agricultura_xp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -87,7 +111,6 @@ public class DatabaseManager {
                     var rs = psSelect.executeQuery();
 
                     if (rs.next()) {
-                        // CARGAMOS TODO A LA RAM
                         plugin.nexoNiveles.put(uuid, rs.getInt("nexo_nivel"));
                         plugin.nexoXp.put(uuid, rs.getInt("nexo_xp"));
                         plugin.combateNiveles.put(uuid, rs.getInt("combate_nivel"));
@@ -97,17 +120,15 @@ public class DatabaseManager {
                         plugin.agriculturaNiveles.put(uuid, rs.getInt("agricultura_nivel"));
                         plugin.agriculturaXp.put(uuid, rs.getInt("agricultura_xp"));
                     } else {
-                        // SI ES NUEVO, LO CREAMOS CON NIVEL 1 EN TODO
                         try (PreparedStatement psInsert = conn.prepareStatement(insertSQL)) {
                             psInsert.setString(1, uuid.toString());
                             psInsert.setString(2, player.getName());
-                            psInsert.setInt(3, 1); psInsert.setInt(4, 0); // Nexo
-                            psInsert.setInt(5, 1); psInsert.setInt(6, 0); // Combate
-                            psInsert.setInt(7, 1); psInsert.setInt(8, 0); // Minería
-                            psInsert.setInt(9, 1); psInsert.setInt(10, 0); // Agricultura
+                            psInsert.setInt(3, 1); psInsert.setInt(4, 0);
+                            psInsert.setInt(5, 1); psInsert.setInt(6, 0);
+                            psInsert.setInt(7, 1); psInsert.setInt(8, 0);
+                            psInsert.setInt(9, 1); psInsert.setInt(10, 0);
                             psInsert.executeUpdate();
 
-                            // Lo metemos a la RAM
                             plugin.nexoNiveles.put(uuid, 1); plugin.nexoXp.put(uuid, 0);
                             plugin.combateNiveles.put(uuid, 1); plugin.combateXp.put(uuid, 0);
                             plugin.mineriaNiveles.put(uuid, 1); plugin.mineriaXp.put(uuid, 0);
@@ -127,7 +148,6 @@ public class DatabaseManager {
         UUID uuid = player.getUniqueId();
         if (!plugin.nexoNiveles.containsKey(uuid)) return;
 
-        // ¡CLAVE DEL ÉXITO! Extraemos las variables de la RAM *antes* del hilo asíncrono
         int nNivel = plugin.nexoNiveles.get(uuid);
         int nXp = plugin.nexoXp.get(uuid);
         int cNivel = plugin.combateNiveles.get(uuid);
@@ -138,7 +158,6 @@ public class DatabaseManager {
         int aXp = plugin.agriculturaXp.get(uuid);
         String nombre = player.getName();
 
-        // Ahora sí, podemos limpiar la RAM de forma segura
         plugin.nexoNiveles.remove(uuid); plugin.nexoXp.remove(uuid);
         plugin.combateNiveles.remove(uuid); plugin.combateXp.remove(uuid);
         plugin.mineriaNiveles.remove(uuid); plugin.mineriaXp.remove(uuid);
@@ -153,7 +172,6 @@ public class DatabaseManager {
             try (Connection conn = getConnection();
                  PreparedStatement ps = conn.prepareStatement(updateSQL)) {
 
-                // Inyectamos las variables seguras a Supabase
                 ps.setInt(1, nNivel); ps.setInt(2, nXp); ps.setString(3, nombre);
                 ps.setInt(4, cNivel); ps.setInt(5, cXp); ps.setInt(6, mNivel);
                 ps.setInt(7, mXp); ps.setInt(8, aNivel); ps.setInt(9, aXp);
