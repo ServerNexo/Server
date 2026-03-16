@@ -47,6 +47,11 @@ public class DatabaseManager {
         return dataSource.getConnection();
     }
 
+    // Método agregado para que NexoCollections pueda usar HikariCP
+    public HikariDataSource getDataSource() {
+        return dataSource;
+    }
+
     // ==========================================
     // 🗄️ CREACIÓN DE MÚLTIPLES TABLAS
     // ==========================================
@@ -81,12 +86,18 @@ public class DatabaseManager {
                 "PRIMARY KEY (uuid, preset_id)" +
                 ");";
 
-        // 4. NUEVA: Tabla Global Storage (Para Accesorios y futuros sistemas dinámicos)
+        // 4. Tabla Global Storage (Para Accesorios y futuros sistemas dinámicos)
         String sqlStorage = "CREATE TABLE IF NOT EXISTS nexo_storage (" +
                 "uuid VARCHAR(36)," +
                 "tipo VARCHAR(32)," +
                 "contenido TEXT," +
                 "PRIMARY KEY (uuid, tipo)" +
+                ");";
+
+        // 5. NUEVA: Tabla de Colecciones y Slayers (Optimizada con JSONB)
+        String sqlColecciones = "CREATE TABLE IF NOT EXISTS nexo_collections (" +
+                "uuid VARCHAR(36) PRIMARY KEY," +
+                "collections_data JSONB NOT NULL DEFAULT '{}'::jsonb" +
                 ");";
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -96,7 +107,8 @@ public class DatabaseManager {
                 stmt.execute(sqlJugadores);
                 stmt.execute(sqlMochilas);
                 stmt.execute(sqlGuardarropa);
-                stmt.execute(sqlStorage); // Ejecutamos la nueva tabla de Storage
+                stmt.execute(sqlStorage);
+                stmt.execute(sqlColecciones); // Ejecutamos la tabla de colecciones
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -104,7 +116,7 @@ public class DatabaseManager {
     }
 
     // ==========================================
-    // 👤 GESTIÓN DE JUGADOR
+    // 👤 GESTIÓN DE JUGADOR (Se mantiene igual)
     // ==========================================
     public void cargarJugador(Player player) {
         String selectSQL = "SELECT * FROM jugadores WHERE uuid = ?";
