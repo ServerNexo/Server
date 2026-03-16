@@ -34,7 +34,7 @@ public class DatabaseManager {
         config.setConnectionTimeout(10000);
 
         dataSource = new HikariDataSource(config);
-        crearTabla(); // ⬅️ Aquí llamamos a la creación de tablas
+        crearTabla(); // Aquí llamamos a la creación de tablas
     }
 
     public void desconectar() {
@@ -48,7 +48,7 @@ public class DatabaseManager {
     }
 
     // ==========================================
-    // 🗄️ CREACIÓN DE MÚLTIPLES TABLAS (Actualizado)
+    // 🗄️ CREACIÓN DE MÚLTIPLES TABLAS
     // ==========================================
     private void crearTabla() {
         // 1. Tabla de Jugadores Clásica (XP y Niveles)
@@ -65,8 +65,7 @@ public class DatabaseManager {
                 "agricultura_xp INT DEFAULT 0" +
                 ");";
 
-        // 2. NUEVA: Tabla de Mochilas
-        // Usamos PRIMARY KEY(uuid, mochila_id) para que un jugador pueda tener varias mochilas (ej: la mochila 1, la mochila 2)
+        // 2. Tabla de Mochilas (/pv)
         String sqlMochilas = "CREATE TABLE IF NOT EXISTS mochilas (" +
                 "uuid VARCHAR(36)," +
                 "mochila_id INT," +
@@ -74,8 +73,7 @@ public class DatabaseManager {
                 "PRIMARY KEY (uuid, mochila_id)" +
                 ");";
 
-        // 3. NUEVA: Tabla del Guardarropa
-        // Mismo sistema, permitimos guardar varios "presets" de armadura
+        // 3. Tabla del Guardarropa (/wardrobe)
         String sqlGuardarropa = "CREATE TABLE IF NOT EXISTS guardarropa (" +
                 "uuid VARCHAR(36)," +
                 "preset_id INT," +
@@ -83,13 +81,22 @@ public class DatabaseManager {
                 "PRIMARY KEY (uuid, preset_id)" +
                 ");";
 
+        // 4. NUEVA: Tabla Global Storage (Para Accesorios y futuros sistemas dinámicos)
+        String sqlStorage = "CREATE TABLE IF NOT EXISTS nexo_storage (" +
+                "uuid VARCHAR(36)," +
+                "tipo VARCHAR(32)," +
+                "contenido TEXT," +
+                "PRIMARY KEY (uuid, tipo)" +
+                ");";
+
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = getConnection();
                  java.sql.Statement stmt = conn.createStatement()) {
-                // Ejecutamos las 3 creaciones al arrancar el servidor
+                // Ejecutamos las creaciones al arrancar el servidor
                 stmt.execute(sqlJugadores);
                 stmt.execute(sqlMochilas);
                 stmt.execute(sqlGuardarropa);
+                stmt.execute(sqlStorage); // Ejecutamos la nueva tabla de Storage
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -97,7 +104,7 @@ public class DatabaseManager {
     }
 
     // ==========================================
-    // 👤 GESTIÓN DE JUGADOR (Mantenida Intacta)
+    // 👤 GESTIÓN DE JUGADOR
     // ==========================================
     public void cargarJugador(Player player) {
         String selectSQL = "SELECT * FROM jugadores WHERE uuid = ?";

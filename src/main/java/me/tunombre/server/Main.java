@@ -14,6 +14,7 @@ public class Main extends JavaPlugin {
 
     // Motores Públicos
     public me.tunombre.server.minigames.CombatComboManager combatComboManager;
+    public me.tunombre.server.pvp.PvPManager pvpManager; // Nuevo Motor Público
 
     // 🛡️ RAM: Variables concurrentes seguras
     public ConcurrentHashMap<UUID, Integer> nexoNiveles = new ConcurrentHashMap<>();
@@ -86,17 +87,34 @@ public class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new me.tunombre.server.pasivas.PasivasListener(this, pasivasManager), this);
 
         // ==========================================
-        // 🎮 MOTOR DE MINIJUEGOS (Fase 1 y Fase 2)
+        // 🎮 MOTOR DE MINIJUEGOS
         // ==========================================
         this.combatComboManager = new me.tunombre.server.minigames.CombatComboManager(this);
         getServer().getPluginManager().registerEvents(this.combatComboManager, this);
         getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.MiningMinigameManager(this), this);
         getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.FishingHookManager(this), this);
-
         getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.WoodcuttingMinigameManager(this), this);
         getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.FarmingMinigameManager(this), this);
         getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.AlchemyMinigameManager(this), this);
         getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.EnchantingMinigameManager(this), this);
+
+        // ==========================================
+        // 💍 SISTEMA DE ACCESORIOS Y NEXO-POWER
+        // ==========================================
+        me.tunombre.server.accesorios.AccesoriosManager accesoriosManager = new me.tunombre.server.accesorios.AccesoriosManager(this);
+        if (getCommand("accesorios") != null) {
+            getCommand("accesorios").setExecutor(new me.tunombre.server.accesorios.ComandoAccesorios(accesoriosManager));
+        }
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.accesorios.AccesoriosListener(this, accesoriosManager), this);
+
+        // ==========================================
+        // ⚔️ MOTOR DE PVP Y HONOR (BOUNTY SYSTEM)
+        // ==========================================
+        this.pvpManager = new me.tunombre.server.pvp.PvPManager(this);
+        if (getCommand("pvp") != null) {
+            getCommand("pvp").setExecutor(new me.tunombre.server.pvp.ComandoPvP(this.pvpManager));
+        }
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.pvp.PvPListener(this.pvpManager), this);
 
         // Integración PlaceholderAPI
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
@@ -108,18 +126,17 @@ public class Main extends JavaPlugin {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 UUID id = p.getUniqueId();
 
-                // 1. Energía (Sistema propio de recolección y artefactos)
+                // 1. Energía
                 int nivelNexo = nexoNiveles.getOrDefault(id, 1);
                 int maxEnergia = 100 + ((nivelNexo - 1) * 20);
                 int energiaActual = energiaMineria.getOrDefault(id, maxEnergia);
 
-                // Si no está en Frenesí, regenera normalmente
                 if (energiaActual < maxEnergia) {
                     energiaMineria.put(id, Math.min(energiaActual + 5, maxEnergia));
                     energiaActual = Math.min(energiaActual + 5, maxEnergia);
                 }
 
-                // 2. LEER MANÁ DIRECTO DE AURASKILLS
+                // 2. LEER MANÁ DE AURASKILLS
                 int manaActual = 0;
                 int maxMana = 0;
                 try {
@@ -130,16 +147,21 @@ public class Main extends JavaPlugin {
                     }
                 } catch (Exception ignored) {}
 
-                // 3. Obtenemos la vida real del jugador para mostrarla
+                // 3. Vida
                 int hpActual = (int) Math.ceil(p.getHealth());
                 int hpMax = (int) p.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getValue();
 
-                // 4. Dibujar el HUD completo en pantalla
+                // 4. Dibujar HUD
                 String hud = "§c❤ " + hpActual + "/" + hpMax + "  §b💧 " + manaActual + "/" + maxMana + "  §e⚡ " + energiaActual + "/" + maxEnergia;
 
-                // Si está en Frenesí, mostramos indicador visual extra
+                // Indicador de Frenesí
                 if (combatComboManager != null && combatComboManager.enFrenesi.containsKey(id)) {
                     hud = "§4§l[FRENESÍ ACTIVO] " + hud;
+                }
+
+                // Indicador de Combate PvP (Añadido)
+                if (pvpManager != null && pvpManager.estaEnCombate(p)) {
+                    hud = "§c⚔ §l¡EN COMBATE! §r" + hud;
                 }
 
                 p.sendActionBar(hud);
@@ -148,14 +170,13 @@ public class Main extends JavaPlugin {
 
         new ArmorTask(this).runTaskTimer(this, 10L, 10L);
 
-        getLogger().info("¡Nexo Core V6: Todos los Motores RPG están Operativos!");
+        getLogger().info("¡Nexo Core V8: PvP y Sistema de Honor Integrados!");
     }
 
     @Override
     public void onDisable() {
         if (databaseManager != null) databaseManager.desconectar();
 
-        // 🚨 ACTIVA EL FAILSAFE ANTES DE APAGARSE 🚨
         BlockBreakListener.restaurarBloquesRotos();
         getLogger().info("Bloques del Nexo restaurados exitosamente.");
     }

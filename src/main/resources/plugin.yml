@@ -18,6 +18,12 @@ commands:
   wardrobe:
     description: Abre tu guardarropa personal
     aliases: [ guardarropa, ropero ]
+  accesorios:
+    description: Abre tu bolsa de accesorios
+    aliases: [ acc, accessories ]
+  pvp:
+    description: Activa o desactiva tu Modo de Guerra
+    aliases: [ modo ]
 libraries:
   - com.zaxxer:HikariCP:5.1.0
   - org.postgresql:postgresql:42.7.2
