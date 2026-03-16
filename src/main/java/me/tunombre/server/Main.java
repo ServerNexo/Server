@@ -12,6 +12,9 @@ public class Main extends JavaPlugin {
     private DatabaseManager databaseManager;
     private FileManager fileManager;
 
+    // Motores Públicos
+    public me.tunombre.server.minigames.CombatComboManager combatComboManager;
+
     // 🛡️ RAM: Variables concurrentes seguras
     public ConcurrentHashMap<UUID, Integer> nexoNiveles = new ConcurrentHashMap<>();
     public ConcurrentHashMap<UUID, Integer> nexoXp = new ConcurrentHashMap<>();
@@ -82,6 +85,19 @@ public class Main extends JavaPlugin {
         me.tunombre.server.pasivas.PasivasManager pasivasManager = new me.tunombre.server.pasivas.PasivasManager(this);
         getServer().getPluginManager().registerEvents(new me.tunombre.server.pasivas.PasivasListener(this, pasivasManager), this);
 
+        // ==========================================
+        // 🎮 MOTOR DE MINIJUEGOS (Fase 1 y Fase 2)
+        // ==========================================
+        this.combatComboManager = new me.tunombre.server.minigames.CombatComboManager(this);
+        getServer().getPluginManager().registerEvents(this.combatComboManager, this);
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.MiningMinigameManager(this), this);
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.FishingHookManager(this), this);
+
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.WoodcuttingMinigameManager(this), this);
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.FarmingMinigameManager(this), this);
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.AlchemyMinigameManager(this), this);
+        getServer().getPluginManager().registerEvents(new me.tunombre.server.minigames.EnchantingMinigameManager(this), this);
+
         // Integración PlaceholderAPI
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new NexoExpansion(this).register();
@@ -97,6 +113,7 @@ public class Main extends JavaPlugin {
                 int maxEnergia = 100 + ((nivelNexo - 1) * 20);
                 int energiaActual = energiaMineria.getOrDefault(id, maxEnergia);
 
+                // Si no está en Frenesí, regenera normalmente
                 if (energiaActual < maxEnergia) {
                     energiaMineria.put(id, Math.min(energiaActual + 5, maxEnergia));
                     energiaActual = Math.min(energiaActual + 5, maxEnergia);
@@ -119,13 +136,19 @@ public class Main extends JavaPlugin {
 
                 // 4. Dibujar el HUD completo en pantalla
                 String hud = "§c❤ " + hpActual + "/" + hpMax + "  §b💧 " + manaActual + "/" + maxMana + "  §e⚡ " + energiaActual + "/" + maxEnergia;
+
+                // Si está en Frenesí, mostramos indicador visual extra
+                if (combatComboManager != null && combatComboManager.enFrenesi.containsKey(id)) {
+                    hud = "§4§l[FRENESÍ ACTIVO] " + hud;
+                }
+
                 p.sendActionBar(hud);
             }
         }, 20L, 20L);
 
         new ArmorTask(this).runTaskTimer(this, 10L, 10L);
 
-        getLogger().info("¡Nexo Core V4: Motor de Pasivas RPG Integrado!");
+        getLogger().info("¡Nexo Core V6: Todos los Motores RPG están Operativos!");
     }
 
     @Override
