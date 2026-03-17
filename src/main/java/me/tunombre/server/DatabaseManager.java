@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
 
@@ -43,7 +44,7 @@ public class DatabaseManager {
         } catch (Exception e) {
             plugin.getLogger().severe("============================================");
             plugin.getLogger().severe("❌ ERROR DE BASE DE DATOS SUPABASE ❌");
-            plugin.getLogger().severe("No se pudo conectar a la base de datos.");
+            plugin.getLogger().severe("No se pudo conectar a la base de datos: " + e.getMessage());
             plugin.getLogger().severe("Revisa que tu contraseña sea correcta o que Supabase no esté pausado.");
             plugin.getLogger().severe("El plugin encenderá, pero los datos no se guardarán en la nube.");
             plugin.getLogger().severe("============================================");
@@ -67,54 +68,44 @@ public class DatabaseManager {
     }
 
     // ==========================================
-    // 🗄️ CREACIÓN DE MÚLTIPLES TABLAS
+    // 🗄️ CREACIÓN DE MÚLTIPLES TABLAS (Optimizadas Java 21)
     // ==========================================
     private void crearTabla() {
         if (dataSource == null) return; // Si falló la conexión, no intentamos crear tablas
 
-        // 1. Tabla de Jugadores Clásica (XP y Niveles)
-        String sqlJugadores = "CREATE TABLE IF NOT EXISTS jugadores (" +
-                "uuid VARCHAR(36) PRIMARY KEY," +
-                "nombre VARCHAR(16) NOT NULL," +
-                "nexo_nivel INT DEFAULT 1," +
-                "nexo_xp INT DEFAULT 0," +
-                "combate_nivel INT DEFAULT 1," +
-                "combate_xp INT DEFAULT 0," +
-                "mineria_nivel INT DEFAULT 1," +
-                "mineria_xp INT DEFAULT 0," +
-                "agricultura_nivel INT DEFAULT 1," +
-                "agricultura_xp INT DEFAULT 0" +
-                ");";
+        // 🟢 Clean Code: Text Blocks para evitar el "+" infinito en SQL
+        String sqlJugadores = """
+                CREATE TABLE IF NOT EXISTS jugadores (
+                    uuid VARCHAR(36) PRIMARY KEY, nombre VARCHAR(16) NOT NULL,
+                    nexo_nivel INT DEFAULT 1, nexo_xp INT DEFAULT 0,
+                    combate_nivel INT DEFAULT 1, combate_xp INT DEFAULT 0,
+                    mineria_nivel INT DEFAULT 1, mineria_xp INT DEFAULT 0,
+                    agricultura_nivel INT DEFAULT 1, agricultura_xp INT DEFAULT 0
+                );""";
 
-        // 2. Tabla de Mochilas (/pv)
-        String sqlMochilas = "CREATE TABLE IF NOT EXISTS mochilas (" +
-                "uuid VARCHAR(36)," +
-                "mochila_id INT," +
-                "contenido TEXT," +
-                "PRIMARY KEY (uuid, mochila_id)" +
-                ");";
+        String sqlMochilas = """
+                CREATE TABLE IF NOT EXISTS mochilas (
+                    uuid VARCHAR(36), mochila_id INT, contenido TEXT,
+                    PRIMARY KEY (uuid, mochila_id)
+                );""";
 
-        // 3. Tabla del Guardarropa (/wardrobe)
-        String sqlGuardarropa = "CREATE TABLE IF NOT EXISTS guardarropa (" +
-                "uuid VARCHAR(36)," +
-                "preset_id INT," +
-                "contenido TEXT," +
-                "PRIMARY KEY (uuid, preset_id)" +
-                ");";
+        String sqlGuardarropa = """
+                CREATE TABLE IF NOT EXISTS guardarropa (
+                    uuid VARCHAR(36), preset_id INT, contenido TEXT,
+                    PRIMARY KEY (uuid, preset_id)
+                );""";
 
-        // 4. Tabla Global Storage (Para Accesorios y futuros sistemas dinámicos)
-        String sqlStorage = "CREATE TABLE IF NOT EXISTS nexo_storage (" +
-                "uuid VARCHAR(36)," +
-                "tipo VARCHAR(32)," +
-                "contenido TEXT," +
-                "PRIMARY KEY (uuid, tipo)" +
-                ");";
+        String sqlStorage = """
+                CREATE TABLE IF NOT EXISTS nexo_storage (
+                    uuid VARCHAR(36), tipo VARCHAR(32), contenido TEXT,
+                    PRIMARY KEY (uuid, tipo)
+                );""";
 
-        // 5. NUEVA: Tabla de Colecciones y Slayers (Optimizada con JSONB)
-        String sqlColecciones = "CREATE TABLE IF NOT EXISTS nexo_collections (" +
-                "uuid VARCHAR(36) PRIMARY KEY," +
-                "collections_data JSONB NOT NULL DEFAULT '{}'::jsonb" +
-                ");";
+        String sqlColecciones = """
+                CREATE TABLE IF NOT EXISTS nexo_collections (
+                    uuid VARCHAR(36) PRIMARY KEY,
+                    collections_data JSONB NOT NULL DEFAULT '{}'::jsonb
+                );""";
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = getConnection();
@@ -126,57 +117,62 @@ public class DatabaseManager {
                 stmt.execute(sqlStorage);
                 stmt.execute(sqlColecciones); // Ejecutamos la tabla de colecciones
             } catch (SQLException e) {
-                e.printStackTrace();
+                plugin.getLogger().severe("Error al crear tablas: " + e.getMessage());
             }
         });
     }
 
     // ==========================================
-    // 👤 GESTIÓN DE JUGADOR (Se mantiene igual)
+    // 👤 GESTIÓN DE JUGADOR (Thread-Safe)
     // ==========================================
     public void cargarJugador(Player player) {
-        if (dataSource == null) return; // Si no hay base de datos, ignoramos el guardado
+        if (dataSource == null) return;
 
         String selectSQL = "SELECT * FROM jugadores WHERE uuid = ?";
-        String insertSQL = "INSERT INTO jugadores (uuid, nombre, nexo_nivel, nexo_xp, combate_nivel, combate_xp, mineria_nivel, mineria_xp, agricultura_nivel, agricultura_xp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String insertSQL = "INSERT INTO jugadores (uuid, nombre) VALUES (?, ?)"; // Eliminados valores por defecto (la base de datos se encarga de eso)
         UUID uuid = player.getUniqueId();
+        String name = player.getName();
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = getConnection()) {
                 try (PreparedStatement psSelect = conn.prepareStatement(selectSQL)) {
                     psSelect.setString(1, uuid.toString());
-                    var rs = psSelect.executeQuery();
+                    ResultSet rs = psSelect.executeQuery();
 
                     if (rs.next()) {
-                        plugin.nexoNiveles.put(uuid, rs.getInt("nexo_nivel"));
-                        plugin.nexoXp.put(uuid, rs.getInt("nexo_xp"));
-                        plugin.combateNiveles.put(uuid, rs.getInt("combate_nivel"));
-                        plugin.combateXp.put(uuid, rs.getInt("combate_xp"));
-                        plugin.mineriaNiveles.put(uuid, rs.getInt("mineria_nivel"));
-                        plugin.mineriaXp.put(uuid, rs.getInt("mineria_xp"));
-                        plugin.agriculturaNiveles.put(uuid, rs.getInt("agricultura_nivel"));
-                        plugin.agriculturaXp.put(uuid, rs.getInt("agricultura_xp"));
+                        // Leemos datos en asíncrono
+                        int nN = rs.getInt("nexo_nivel"), nX = rs.getInt("nexo_xp");
+                        int cN = rs.getInt("combate_nivel"), cX = rs.getInt("combate_xp");
+                        int mN = rs.getInt("mineria_nivel"), mX = rs.getInt("mineria_xp");
+                        int aN = rs.getInt("agricultura_nivel"), aX = rs.getInt("agricultura_xp");
+
+                        // 🔴 FIX: Volvemos al Main Thread para modificar los mapas concurrentes sin crashear el servidor
+                        Bukkit.getScheduler().runTask(plugin, () -> {
+                            plugin.nexoNiveles.put(uuid, nN); plugin.nexoXp.put(uuid, nX);
+                            plugin.combateNiveles.put(uuid, cN); plugin.combateXp.put(uuid, cX);
+                            plugin.mineriaNiveles.put(uuid, mN); plugin.mineriaXp.put(uuid, mX);
+                            plugin.agriculturaNiveles.put(uuid, aN); plugin.agriculturaXp.put(uuid, aX);
+                        });
                     } else {
                         try (PreparedStatement psInsert = conn.prepareStatement(insertSQL)) {
                             psInsert.setString(1, uuid.toString());
-                            psInsert.setString(2, player.getName());
-                            psInsert.setInt(3, 1); psInsert.setInt(4, 0);
-                            psInsert.setInt(5, 1); psInsert.setInt(6, 0);
-                            psInsert.setInt(7, 1); psInsert.setInt(8, 0);
-                            psInsert.setInt(9, 1); psInsert.setInt(10, 0);
+                            psInsert.setString(2, name);
                             psInsert.executeUpdate();
 
-                            plugin.nexoNiveles.put(uuid, 1); plugin.nexoXp.put(uuid, 0);
-                            plugin.combateNiveles.put(uuid, 1); plugin.combateXp.put(uuid, 0);
-                            plugin.mineriaNiveles.put(uuid, 1); plugin.mineriaXp.put(uuid, 0);
-                            plugin.agriculturaNiveles.put(uuid, 1); plugin.agriculturaXp.put(uuid, 0);
+                            // 🔴 FIX: Volvemos al Main Thread
+                            Bukkit.getScheduler().runTask(plugin, () -> {
+                                plugin.nexoNiveles.put(uuid, 1); plugin.nexoXp.put(uuid, 0);
+                                plugin.combateNiveles.put(uuid, 1); plugin.combateXp.put(uuid, 0);
+                                plugin.mineriaNiveles.put(uuid, 1); plugin.mineriaXp.put(uuid, 0);
+                                plugin.agriculturaNiveles.put(uuid, 1); plugin.agriculturaXp.put(uuid, 0);
 
-                            plugin.getLogger().info("¡Nuevo jugador RPG registrado: " + player.getName());
+                                plugin.getLogger().info("¡Nuevo jugador RPG registrado: " + name);
+                            });
                         }
                     }
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                plugin.getLogger().severe("Error al cargar jugador " + name + ": " + e.getMessage());
             }
         });
     }
@@ -187,25 +183,18 @@ public class DatabaseManager {
         UUID uuid = player.getUniqueId();
         if (!plugin.nexoNiveles.containsKey(uuid)) return;
 
-        int nNivel = plugin.nexoNiveles.get(uuid);
-        int nXp = plugin.nexoXp.get(uuid);
-        int cNivel = plugin.combateNiveles.get(uuid);
-        int cXp = plugin.combateXp.get(uuid);
-        int mNivel = plugin.mineriaNiveles.get(uuid);
-        int mXp = plugin.mineriaXp.get(uuid);
-        int aNivel = plugin.agriculturaNiveles.get(uuid);
-        int aXp = plugin.agriculturaXp.get(uuid);
+        // 🔴 FIX: Leemos los datos en el Main Thread ANTES de mandarlos al hilo asíncrono
+        int nNivel = plugin.nexoNiveles.get(uuid); int nXp = plugin.nexoXp.get(uuid);
+        int cNivel = plugin.combateNiveles.get(uuid); int cXp = plugin.combateXp.get(uuid);
+        int mNivel = plugin.mineriaNiveles.get(uuid); int mXp = plugin.mineriaXp.get(uuid);
+        int aNivel = plugin.agriculturaNiveles.get(uuid); int aXp = plugin.agriculturaXp.get(uuid);
         String nombre = player.getName();
 
-        plugin.nexoNiveles.remove(uuid); plugin.nexoXp.remove(uuid);
-        plugin.combateNiveles.remove(uuid); plugin.combateXp.remove(uuid);
-        plugin.mineriaNiveles.remove(uuid); plugin.mineriaXp.remove(uuid);
-        plugin.agriculturaNiveles.remove(uuid); plugin.agriculturaXp.remove(uuid);
-        plugin.energiaMineria.remove(uuid);
-
-        String updateSQL = "UPDATE jugadores SET nexo_nivel = ?, nexo_xp = ?, nombre = ?, " +
-                "combate_nivel = ?, combate_xp = ?, mineria_nivel = ?, mineria_xp = ?, " +
-                "agricultura_nivel = ?, agricultura_xp = ? WHERE uuid = ?";
+        String updateSQL = """
+                UPDATE jugadores SET nexo_nivel = ?, nexo_xp = ?, nombre = ?, 
+                combate_nivel = ?, combate_xp = ?, mineria_nivel = ?, mineria_xp = ?, 
+                agricultura_nivel = ?, agricultura_xp = ? WHERE uuid = ?
+                """;
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Connection conn = getConnection();
@@ -216,11 +205,54 @@ public class DatabaseManager {
                 ps.setInt(7, mXp); ps.setInt(8, aNivel); ps.setInt(9, aXp);
                 ps.setString(10, uuid.toString());
 
-                ps.executeUpdate();
+                ps.executeUpdate(); // Guardamos en la base de datos primero
+
+                // 🔴 FIX ANTI DATA LOSS: Solo borramos los datos de la RAM si se guardó con éxito en Supabase
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    plugin.nexoNiveles.remove(uuid); plugin.nexoXp.remove(uuid);
+                    plugin.combateNiveles.remove(uuid); plugin.combateXp.remove(uuid);
+                    plugin.mineriaNiveles.remove(uuid); plugin.mineriaXp.remove(uuid);
+                    plugin.agriculturaNiveles.remove(uuid); plugin.agriculturaXp.remove(uuid);
+                    plugin.energiaMineria.remove(uuid);
+                });
 
             } catch (SQLException e) {
-                e.printStackTrace();
+                plugin.getLogger().severe("Fallo grave al guardar a " + nombre + ". Sus datos se mantuvieron en memoria: " + e.getMessage());
             }
         });
+    }
+
+    // ==========================================
+    // 🔴 NUEVO MÉTODO CRÍTICO PARA EL APAGADO (onDisable)
+    // ==========================================
+    public void guardarJugadorSync(Player player) {
+        if (dataSource == null) return;
+        UUID uuid = player.getUniqueId();
+        if (!plugin.nexoNiveles.containsKey(uuid)) return;
+
+        String updateSQL = """
+                UPDATE jugadores SET nexo_nivel = ?, nexo_xp = ?, nombre = ?, 
+                combate_nivel = ?, combate_xp = ?, mineria_nivel = ?, mineria_xp = ?, 
+                agricultura_nivel = ?, agricultura_xp = ? WHERE uuid = ?
+                """;
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(updateSQL)) {
+
+            ps.setInt(1, plugin.nexoNiveles.get(uuid));
+            ps.setInt(2, plugin.nexoXp.get(uuid));
+            ps.setString(3, player.getName());
+            ps.setInt(4, plugin.combateNiveles.get(uuid));
+            ps.setInt(5, plugin.combateXp.get(uuid));
+            ps.setInt(6, plugin.mineriaNiveles.get(uuid));
+            ps.setInt(7, plugin.mineriaXp.get(uuid));
+            ps.setInt(8, plugin.agriculturaNiveles.get(uuid));
+            ps.setInt(9, plugin.agriculturaXp.get(uuid));
+            ps.setString(10, uuid.toString());
+
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Error en guardado síncrono de " + player.getName() + ": " + e.getMessage());
+        }
     }
 }

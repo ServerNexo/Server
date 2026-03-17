@@ -1,27 +1,25 @@
 package me.tunombre.server.colecciones;
 
 import me.tunombre.server.Main;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
 
-// ❌ Fíjate que NO dice "extends JavaPlugin"
 public class ColeccionesConfig {
 
     private final Main plugin;
     private FileConfiguration config;
     private File configFile;
 
-    // ✅ Pedimos prestado el Main (Tu motor) a través del constructor
     public ColeccionesConfig(Main plugin) {
         this.plugin = plugin;
         crearConfig();
     }
 
     public void crearConfig() {
-        // ❌ Le quitamos la palabra "File" al inicio
         configFile = new File(plugin.getDataFolder(), "colecciones.yml");
 
         if (!configFile.exists()) {
@@ -29,7 +27,6 @@ public class ColeccionesConfig {
             plugin.saveResource("colecciones.yml", false);
         }
 
-        // ❌ Le quitamos la palabra "FileConfiguration" al inicio
         config = YamlConfiguration.loadConfiguration(configFile);
     }
 
@@ -47,5 +44,29 @@ public class ColeccionesConfig {
 
     public void recargarConfig() {
         config = YamlConfiguration.loadConfiguration(configFile);
+    }
+
+    // ==========================================================
+    // 🔍 MÉTODOS DE LECTURA (¡Esto quita las líneas rojas!)
+    // ==========================================================
+
+    // Revisa si un bloque está en la lista de colecciones
+    public boolean esColeccion(String id) {
+        return config.contains("colecciones." + id);
+    }
+
+    // Obtiene toda la información de una colección (niveles, recompensas)
+    public ConfigurationSection getDatosColeccion(String id) {
+        return config.getConfigurationSection("colecciones." + id);
+    }
+
+    // Revisa si un mob está en la lista de Slayers
+    public boolean esSlayer(String id) {
+        return config.contains("slayers." + id);
+    }
+
+    // Obtiene toda la información de un Slayer
+    public ConfigurationSection getDatosSlayer(String id) {
+        return config.getConfigurationSection("slayers." + id);
     }
 }
