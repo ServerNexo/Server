@@ -19,22 +19,35 @@ public class DatabaseManager {
         this.plugin = plugin;
     }
 
+    // 🛡️ MÉTODO BLINDADO CONTRA CRASHEOS DE CONEXIÓN
     public void conectar() {
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(plugin.getConfig().getString("database.url"));
-        config.setUsername(plugin.getConfig().getString("database.username"));
-        config.setPassword(plugin.getConfig().getString("database.password"));
+        try {
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(plugin.getConfig().getString("database.url"));
+            config.setUsername(plugin.getConfig().getString("database.username"));
+            config.setPassword(plugin.getConfig().getString("database.password"));
 
-        config.setDriverClassName("org.postgresql.Driver");
+            config.setDriverClassName("org.postgresql.Driver");
 
-        config.setMaximumPoolSize(10);
-        config.setMinimumIdle(2);
-        config.setIdleTimeout(30000);
-        config.setMaxLifetime(1800000);
-        config.setConnectionTimeout(10000);
+            config.setMaximumPoolSize(10);
+            config.setMinimumIdle(2);
+            config.setIdleTimeout(30000);
+            config.setMaxLifetime(1800000);
+            config.setConnectionTimeout(10000); // Máximo 10 segundos esperando para no congelar el servidor
 
-        dataSource = new HikariDataSource(config);
-        crearTabla(); // Aquí llamamos a la creación de tablas
+            dataSource = new HikariDataSource(config);
+            crearTabla(); // Aquí llamamos a la creación de tablas
+
+            plugin.getLogger().info("✅ ¡Conexión a Supabase establecida correctamente!");
+
+        } catch (Exception e) {
+            plugin.getLogger().severe("============================================");
+            plugin.getLogger().severe("❌ ERROR DE BASE DE DATOS SUPABASE ❌");
+            plugin.getLogger().severe("No se pudo conectar a la base de datos.");
+            plugin.getLogger().severe("Revisa que tu contraseña sea correcta o que Supabase no esté pausado.");
+            plugin.getLogger().severe("El plugin encenderá, pero los datos no se guardarán en la nube.");
+            plugin.getLogger().severe("============================================");
+        }
     }
 
     public void desconectar() {
@@ -44,6 +57,7 @@ public class DatabaseManager {
     }
 
     public Connection getConnection() throws SQLException {
+        if (dataSource == null) throw new SQLException("El DataSource no está inicializado.");
         return dataSource.getConnection();
     }
 
@@ -56,6 +70,8 @@ public class DatabaseManager {
     // 🗄️ CREACIÓN DE MÚLTIPLES TABLAS
     // ==========================================
     private void crearTabla() {
+        if (dataSource == null) return; // Si falló la conexión, no intentamos crear tablas
+
         // 1. Tabla de Jugadores Clásica (XP y Niveles)
         String sqlJugadores = "CREATE TABLE IF NOT EXISTS jugadores (" +
                 "uuid VARCHAR(36) PRIMARY KEY," +
@@ -119,6 +135,8 @@ public class DatabaseManager {
     // 👤 GESTIÓN DE JUGADOR (Se mantiene igual)
     // ==========================================
     public void cargarJugador(Player player) {
+        if (dataSource == null) return; // Si no hay base de datos, ignoramos el guardado
+
         String selectSQL = "SELECT * FROM jugadores WHERE uuid = ?";
         String insertSQL = "INSERT INTO jugadores (uuid, nombre, nexo_nivel, nexo_xp, combate_nivel, combate_xp, mineria_nivel, mineria_xp, agricultura_nivel, agricultura_xp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         UUID uuid = player.getUniqueId();
@@ -164,6 +182,8 @@ public class DatabaseManager {
     }
 
     public void guardarJugador(Player player) {
+        if (dataSource == null) return;
+
         UUID uuid = player.getUniqueId();
         if (!plugin.nexoNiveles.containsKey(uuid)) return;
 

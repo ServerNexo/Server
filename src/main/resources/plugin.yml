@@ -2,12 +2,12 @@ name: NexoCore
 version: 1.0
 main: me.tunombre.server.Main
 api-version: '1.21'
-softdepend: [PlaceholderAPI, MythicMobs]
-depend: [eco, AuraSkills, Nexo]
+softdepend: [PlaceholderAPI, MythicMobs, eco]
+depend: [AuraSkills, Nexo]
 commands:
   test:
     description: Mi comando de prueba
-  nexo:
+  nexocore: # <--- ¡Cambiamos esto de "nexo" a "nexocore"!
     description: Comando de administracion del Nexo
     permission: nexo.admin
   desguace:

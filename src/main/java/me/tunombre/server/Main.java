@@ -52,10 +52,19 @@ public class Main extends JavaPlugin {
         // Iniciamos el FlushTask asíncrono para que guarde en Supabase cada 10 minutos (12000 ticks)
         new me.tunombre.server.colecciones.FlushTask(databaseManager.getDataSource()).runTaskTimerAsynchronously(this, 12000L, 12000L);
 
-        // Comandos base
-        getCommand("test").setExecutor(new ComandoTest(this));
-        getCommand("nexo").setExecutor(new ComandoNexo(this));
-        getCommand("desguace").setExecutor(new ComandoDesguace(this));
+        // Comandos base (BLINDADOS)
+        if (getCommand("test") != null) {
+            getCommand("test").setExecutor(new ComandoTest(this));
+        }
+
+        // ¡OJO! Aquí también cambiamos la palabra "nexo" por "nexocore"
+        if (getCommand("nexocore") != null) {
+            getCommand("nexocore").setExecutor(new ComandoNexo(this));
+        }
+
+        if (getCommand("desguace") != null) {
+            getCommand("desguace").setExecutor(new ComandoDesguace(this));
+        }
 
         // Listeners base
         getServer().getPluginManager().registerEvents(new DesguaceListener(this), this);

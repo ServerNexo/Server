@@ -1,56 +1,51 @@
 package me.tunombre.server.colecciones;
 
 import me.tunombre.server.Main;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
 
+// ❌ Fíjate que NO dice "extends JavaPlugin"
 public class ColeccionesConfig {
+
     private final Main plugin;
-    private File file;
     private FileConfiguration config;
+    private File configFile;
 
-    // Mapas para buscar rápidamente si un bloque o mob está configurado
-    private final Map<String, ConfigurationSection> colecciones = new HashMap<>();
-    private final Map<String, ConfigurationSection> slayers = new HashMap<>();
-
+    // ✅ Pedimos prestado el Main (Tu motor) a través del constructor
     public ColeccionesConfig(Main plugin) {
         this.plugin = plugin;
-        cargarConfiguracion();
+        crearConfig();
     }
 
-    public void cargarConfiguracion() {
-        file = new File(plugin.getDataFolder(), "colecciones.yml");
-        if (!file.exists()) {
+    public void crearConfig() {
+        // ❌ Le quitamos la palabra "File" al inicio
+        configFile = new File(plugin.getDataFolder(), "colecciones.yml");
+
+        if (!configFile.exists()) {
+            configFile.getParentFile().mkdirs();
             plugin.saveResource("colecciones.yml", false);
         }
-        config = YamlConfiguration.loadConfiguration(file);
-        colecciones.clear();
-        slayers.clear();
 
-        ConfigurationSection colSec = config.getConfigurationSection("colecciones");
-        if (colSec != null) {
-            for (String key : colSec.getKeys(false)) {
-                colecciones.put(key.toLowerCase(), colSec.getConfigurationSection(key));
-            }
-        }
+        // ❌ Le quitamos la palabra "FileConfiguration" al inicio
+        config = YamlConfiguration.loadConfiguration(configFile);
+    }
 
-        ConfigurationSection slaySec = config.getConfigurationSection("slayers");
-        if (slaySec != null) {
-            for (String key : slaySec.getKeys(false)) {
-                slayers.put(key.toLowerCase(), slaySec.getConfigurationSection(key));
-            }
+    public FileConfiguration getConfig() {
+        return config;
+    }
+
+    public void guardarConfig() {
+        try {
+            config.save(configFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("¡No se pudo guardar el archivo colecciones.yml!");
         }
     }
 
-    public boolean esColeccion(String id) { return colecciones.containsKey(id.toLowerCase()); }
-    public boolean esSlayer(String id) { return slayers.containsKey(id.toLowerCase()); }
-
-    public ConfigurationSection getDatosColeccion(String id) { return colecciones.get(id.toLowerCase()); }
-    public ConfigurationSection getDatosSlayer(String id) { return slayers.get(id.toLowerCase()); }
+    public void recargarConfig() {
+        config = YamlConfiguration.loadConfiguration(configFile);
+    }
 }
