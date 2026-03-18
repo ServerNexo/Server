@@ -1,10 +1,12 @@
 package me.tunombre.server;
 
+import me.tunombre.server.user.NexoAPI;
+import me.tunombre.server.user.NexoUser;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.block.Block; // ⬅️ IMPORTACIÓN FALTANTE AÑADIDA
+import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -81,7 +83,14 @@ public class InteractListener implements Listener {
             return;
         }
 
-        int energiaActual = plugin.energiaMineria.getOrDefault(uuid, 100);
+        // 🟢 ARQUITECTURA LIMPIA: Obtenemos el usuario de la caché de la API
+        NexoUser user = NexoAPI.getInstance().getUserLocal(uuid);
+        if (user == null) {
+            jugador.sendMessage("§cTus datos aún están cargando...");
+            return;
+        }
+
+        int energiaActual = user.getEnergiaMineria();
         if (energiaActual < costoEnergia) {
             jugador.sendActionBar("§c⚡ No tienes suficiente energía (" + costoEnergia + " req)");
             jugador.playSound(jugador.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);
@@ -96,7 +105,7 @@ public class InteractListener implements Listener {
             // 🛡️ HABILIDADES TIER 1
             // ==========================================
             case "quake":
-                jugador.getWorld().spawnParticle(Particle.EXPLOSION, loc, 3); // 1.21 Fix
+                jugador.getWorld().spawnParticle(Particle.EXPLOSION, loc, 3);
                 jugador.playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 1f, 1f);
                 for (Entity e : jugador.getNearbyEntities(5, 3, 5)) {
                     if (e instanceof LivingEntity vivo && e != jugador) {
@@ -108,7 +117,7 @@ public class InteractListener implements Listener {
                 break;
 
             case "ola":
-                jugador.getWorld().spawnParticle(Particle.SPLASH, loc.add(0, 1, 0), 100, 2, 0.5, 2, 0.1); // 1.21 Fix
+                jugador.getWorld().spawnParticle(Particle.SPLASH, loc.add(0, 1, 0), 100, 2, 0.5, 2, 0.1);
                 jugador.playSound(loc, Sound.ENTITY_DOLPHIN_SPLASH, 1f, 1f);
                 Vector direccionOla = loc.getDirection().multiply(1.5);
                 for (Entity e : jugador.getNearbyEntities(6, 2, 6)) {
@@ -138,7 +147,7 @@ public class InteractListener implements Listener {
             case "tajo_sanguinario":
                 jugador.playSound(loc, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1f, 0.5f);
                 jugador.getWorld().spawnParticle(Particle.SWEEP_ATTACK, loc.add(loc.getDirection().multiply(1.5)).add(0,1,0), 3);
-                jugador.getWorld().spawnParticle(Particle.DUST, loc.add(0,1,0), 30, 1.5, 0.5, 1.5, new Particle.DustOptions(org.bukkit.Color.RED, 2)); // 1.21 Fix
+                jugador.getWorld().spawnParticle(Particle.DUST, loc.add(0,1,0), 30, 1.5, 0.5, 1.5, new Particle.DustOptions(org.bukkit.Color.RED, 2));
 
                 double curacionTotal = 0;
                 for (Entity e : jugador.getNearbyEntities(4, 2, 4)) {
@@ -214,7 +223,7 @@ public class InteractListener implements Listener {
 
                 // Efectos visuales en el camino
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    jugador.getWorld().spawnParticle(Particle.LARGE_SMOKE, jugador.getLocation().add(0, 1, 0), 50, 1, 1, 1, 0); // 1.21 Fix
+                    jugador.getWorld().spawnParticle(Particle.LARGE_SMOKE, jugador.getLocation().add(0, 1, 0), 50, 1, 1, 1, 0);
                     for (Entity e : jugador.getNearbyEntities(3, 2, 3)) {
                         if (e instanceof LivingEntity vivo && e != jugador) {
                             vivo.damage(60.0, jugador); // Daño masivo por atravesarlos
@@ -247,7 +256,8 @@ public class InteractListener implements Listener {
         }
 
         if (exito) {
-            plugin.energiaMineria.put(uuid, Math.max(0, energiaActual - costoEnergia));
+            // 🟢 GUARDAMOS LA NUEVA ENERGÍA EN EL USUARIO
+            user.setEnergiaMineria(Math.max(0, energiaActual - costoEnergia));
             cooldowns.put(uuid, ahora);
             jugador.sendActionBar("§b✨ Poder utilizado: §f" + habilidad.toUpperCase() + " §8(-" + costoEnergia + "⚡)");
         }

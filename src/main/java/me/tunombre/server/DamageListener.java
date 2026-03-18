@@ -1,7 +1,7 @@
 package me.tunombre.server;
 
-import dev.aurelium.auraskills.api.AuraSkillsApi;
-import dev.aurelium.auraskills.api.skill.Skills;
+import me.tunombre.server.user.NexoAPI;
+import me.tunombre.server.user.NexoUser;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.LivingEntity;
@@ -99,13 +99,19 @@ public class DamageListener implements Listener {
                 WeaponDTO dto = plugin.getFileManager().getWeaponDTO(idArma);
 
                 if (dto != null) {
-                    String claseJugador = plugin.claseJugador.getOrDefault(jugador.getUniqueId(), "Cualquiera");
-                    int nivelCombate = 1;
-                    try {
-                        nivelCombate = Math.max(1, AuraSkillsApi.get().getUser(jugador.getUniqueId()).getSkillLevel(Skills.FIGHTING));
-                    } catch (Exception ignored) {}
 
-                    // 1. RESTRICCIONES (Clase y Nivel de AuraSkills)
+                    // 🟢 ARQUITECTURA LIMPIA: Obtenemos el usuario de la caché
+                    NexoUser user = NexoAPI.getInstance().getUserLocal(jugador.getUniqueId());
+
+                    String claseJugador = "Ninguna";
+                    int nivelCombate = 1;
+
+                    if (user != null) {
+                        claseJugador = user.getClaseJugador();
+                        nivelCombate = user.getCombateNivel();
+                    }
+
+                    // 1. RESTRICCIONES (Clase y Nivel de Combate)
                     if (!dto.claseRequerida().equalsIgnoreCase("Cualquiera") && !dto.claseRequerida().equalsIgnoreCase(claseJugador)) {
                         jugador.sendMessage("§c§l⚠ §cTu clase (" + claseJugador + ") no puede usar esta arma.");
                         jugador.playSound(jugador.getLocation(), Sound.ENTITY_VILLAGER_NO, 1, 1);

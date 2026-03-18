@@ -1,5 +1,7 @@
 package me.tunombre.server;
 
+import me.tunombre.server.user.NexoAPI;
+import me.tunombre.server.user.NexoUser;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -92,7 +94,14 @@ public class BlockBreakListener implements Listener {
             long ahora = System.currentTimeMillis();
             if (cooldownRecoleccion.containsKey(uuid) && (ahora - cooldownRecoleccion.get(uuid)) < 300) return;
 
-            int energiaActual = plugin.energiaMineria.getOrDefault(uuid, 100);
+            // 🟢 ARQUITECTURA LIMPIA: Obtenemos al usuario desde la API
+            NexoUser user = NexoAPI.getInstance().getUserLocal(uuid);
+            if (user == null) {
+                jugador.sendMessage("§cTus datos aún están cargando...");
+                return;
+            }
+
+            int energiaActual = user.getEnergiaMineria();
             if (energiaActual < costeEnergia) {
                 jugador.sendActionBar("§c§l⚠ ¡AGOTADO! §7Descansa...");
                 return;
@@ -190,9 +199,22 @@ public class BlockBreakListener implements Listener {
                 jugador.getInventory().addItem(recompensa);
             }
 
-            plugin.energiaMineria.put(uuid, Math.max(0, energiaActual - costeEnergia));
+            // 🟢 GUARDADO DE ENERGÍA Y XP EN NEXOUSER
+            user.setEnergiaMineria(Math.max(0, energiaActual - costeEnergia));
             cooldownRecoleccion.put(uuid, ahora);
-            plugin.darNexoXp(jugador, xpGanada);
+
+            // 🟢 LÓGICA DE SUBIDA DE NIVEL DE NEXO XP (Reemplaza al antiguo plugin.darNexoXp)
+            int nivelActual = user.getNexoNivel();
+            int xpActual = user.getNexoXp() + xpGanada;
+
+            while (xpActual >= (nivelActual * 100)) {
+                xpActual -= (nivelActual * 100);
+                nivelActual++;
+                jugador.sendTitle("§e§l¡NEXO NIVEL " + nivelActual + "!", "§fHas ascendido", 10, 70, 20);
+            }
+
+            user.setNexoNivel(nivelActual);
+            user.setNexoXp(xpActual);
 
             // ==========================================
             // ⚡ EJECUCIÓN DE HABILIDADES DE HERRAMIENTA

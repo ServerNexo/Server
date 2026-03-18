@@ -1,6 +1,8 @@
 package me.tunombre.server.artefactos;
 
 import me.tunombre.server.Main;
+import me.tunombre.server.user.NexoAPI;
+import me.tunombre.server.user.NexoUser;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -53,11 +55,15 @@ public class ArtefactoManager {
             return false;
         }
 
-        // 2. Validar Energía Custom (Nexo)
-        int nivelNexo = plugin.nexoNiveles.getOrDefault(uuid, 1);
-        int maxEnergia = 100 + ((nivelNexo - 1) * 20);
-        int energiaActual = plugin.energiaMineria.getOrDefault(uuid, maxEnergia);
+        // 🟢 2. ARQUITECTURA LIMPIA: Validar Energía Custom (Nexo) usando la API
+        NexoUser user = NexoAPI.getInstance().getUserLocal(uuid);
+        if (user == null) {
+            p.sendMessage("§cTus datos aún están cargando...");
+            return false;
+        }
 
+        int maxEnergia = 100 + ((user.getNexoNivel() - 1) * 20) + user.getEnergiaExtraAccesorios();
+        int energiaActual = user.getEnergiaMineria();
         int costoFinal = dto.cost();
 
         // Lógica especial para costo porcentual (Ej: Orbe de Sobrecarga gasta un % de tu Energía Máxima)
@@ -79,8 +85,8 @@ public class ArtefactoManager {
         }
 
         if (estrategia.ejecutar(p, dto)) {
-            // Si fue exitoso, cobramos ENERGÍA y aplicamos cooldown
-            plugin.energiaMineria.put(uuid, Math.max(0, energiaActual - costoFinal));
+            // Si fue exitoso, cobramos ENERGÍA y aplicamos cooldown en el NexoUser
+            user.setEnergiaMineria(Math.max(0, energiaActual - costoFinal));
 
             // Los ítems Toggle manejan su propio cooldown al desactivarse
             if (dto.type() != ArtefactoDTO.HabilidadType.TOGGLE) {
@@ -291,10 +297,14 @@ public class ArtefactoManager {
                             return;
                         }
 
-                        // Lógica de Energía Custom
-                        int nivelNexo = plugin.nexoNiveles.getOrDefault(uuid, 1);
-                        int maxEnergia = 100 + ((nivelNexo - 1) * 20);
-                        int energiaActual = plugin.energiaMineria.getOrDefault(uuid, maxEnergia);
+                        // 🟢 ARQUITECTURA LIMPIA: Lógica de Energía Custom para la tarea asíncrona
+                        NexoUser user = NexoAPI.getInstance().getUserLocal(uuid);
+                        if (user == null) {
+                            cancel();
+                            return;
+                        }
+
+                        int energiaActual = user.getEnergiaMineria();
 
                         if (energiaActual < dto.cost()) {
                             alasActivas.remove(uuid);
@@ -306,8 +316,8 @@ public class ArtefactoManager {
                             return;
                         }
 
-                        // Drenamos la energía
-                        plugin.energiaMineria.put(uuid, energiaActual - dto.cost());
+                        // Drenamos la energía en el NexoUser
+                        user.setEnergiaMineria(energiaActual - dto.cost());
                         p.getWorld().spawnParticle(Particle.WAX_ON, p.getLocation(), 2);
                     }
                 }.runTaskTimer(plugin, 20L, 20L); // 1 vez por segundo

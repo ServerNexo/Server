@@ -1,6 +1,8 @@
 package me.tunombre.server.accesorios;
 
 import me.tunombre.server.Main;
+import me.tunombre.server.user.NexoAPI;
+import me.tunombre.server.user.NexoUser;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
@@ -100,9 +102,12 @@ public class AccesoriosListener implements Listener {
         aplicarAtributo(p, Attribute.MOVEMENT_SPEED, keyVelocidad, stats.getOrDefault(AccessoryDTO.StatType.VELOCIDAD, 0.0));
         aplicarAtributo(p, Attribute.ARMOR, keyArmadura, stats.getOrDefault(AccessoryDTO.StatType.ARMADURA, 0.0));
 
-        // 2. Aplicamos Energía Custom (El FIX Mágico ✨)
+        // 2. 🟢 ARQUITECTURA LIMPIA: Guardamos la energía extra en el NexoUser
         int energiaExtra = stats.getOrDefault(AccessoryDTO.StatType.ENERGIA_CUSTOM, 0.0).intValue();
-        plugin.energiaExtraAccesorios.put(p.getUniqueId(), energiaExtra);
+        NexoUser user = NexoAPI.getInstance().getUserLocal(p.getUniqueId());
+        if (user != null) {
+            user.setEnergiaExtraAccesorios(energiaExtra);
+        }
 
         p.sendMessage("§b✨ El Poder del Nexo de tus accesorios resuena: §l" + event.getNexoPower() + " PX");
     }

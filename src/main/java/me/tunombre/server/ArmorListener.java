@@ -3,6 +3,8 @@ package me.tunombre.server;
 import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
 import dev.aurelium.auraskills.api.AuraSkillsApi;
 import dev.aurelium.auraskills.api.skill.Skills;
+import me.tunombre.server.user.NexoAPI;
+import me.tunombre.server.user.NexoUser;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -57,7 +59,11 @@ public class ArmorListener implements Listener {
             }
         }
 
-        plugin.claseJugador.put(p.getUniqueId(), claseDominante);
+        // 🟢 ARQUITECTURA LIMPIA: Guardamos la clase en el NexoUser en lugar del mapa del Main
+        NexoUser user = NexoAPI.getInstance().getUserLocal(p.getUniqueId());
+        if (user != null) {
+            user.setClaseJugador(claseDominante);
+        }
 
         // ==========================================
         // 2. APLICAR STATS Y RESTRICCIONES

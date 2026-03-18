@@ -5,7 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+// import java.util.concurrent.ConcurrentHashMap; (Ya no necesitamos esto aquí)
 
 public class Main extends JavaPlugin {
 
@@ -22,18 +22,7 @@ public class Main extends JavaPlugin {
     public me.tunombre.server.minigames.CombatComboManager combatComboManager;
     public me.tunombre.server.pvp.PvPManager pvpManager;
 
-    // 🛡️ RAM: Variables concurrentes seguras (Las mantendremos temporalmente)
-    public ConcurrentHashMap<UUID, Integer> nexoNiveles = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, Integer> nexoXp = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, Integer> combateNiveles = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, Integer> combateXp = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, Integer> mineriaNiveles = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, Integer> mineriaXp = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, Integer> agriculturaNiveles = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, Integer> agriculturaXp = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, Integer> energiaMineria = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, Integer> energiaExtraAccesorios = new ConcurrentHashMap<>();
-    public ConcurrentHashMap<UUID, String> claseJugador = new ConcurrentHashMap<>();
+    // 🛡️ RAM: Variables concurrentes seguras (ELIMINADAS)
 
     @Override
     public void onEnable() {
@@ -109,22 +98,32 @@ public class Main extends JavaPlugin {
                 if (!p.isOnline()) continue; // 🟢 FIX: Evitar errores si el jugador se desconecta en este milisegundo
 
                 UUID id = p.getUniqueId();
-                int nivelNexo = nexoNiveles.getOrDefault(id, 1);
-                int maxEnergia = 100 + ((nivelNexo - 1) * 20) + energiaExtraAccesorios.getOrDefault(id, 0);
-                int energiaActual = energiaMineria.getOrDefault(id, maxEnergia);
 
-                if (energiaActual < maxEnergia) {
-                    energiaMineria.put(id, Math.min(energiaActual + 5, maxEnergia));
-                    energiaActual = Math.min(energiaActual + 5, maxEnergia);
+                // 🟢 ARQUITECTURA LIMPIA: Obtenemos el usuario y sus datos de la API
+                me.tunombre.server.user.NexoUser user = me.tunombre.server.user.NexoAPI.getInstance().getUserLocal(id);
+
+                int maxEnergia = 100;
+                int energiaActual = 100;
+
+                if (user != null) {
+                    int nivelNexo = user.getNexoNivel();
+                    maxEnergia = 100 + ((nivelNexo - 1) * 20) + user.getEnergiaExtraAccesorios();
+                    energiaActual = user.getEnergiaMineria();
+
+                    if (energiaActual < maxEnergia) {
+                        int nuevaEnergia = Math.min(energiaActual + 5, maxEnergia);
+                        user.setEnergiaMineria(nuevaEnergia);
+                        energiaActual = nuevaEnergia;
+                    }
                 }
 
                 int manaActual = 0;
                 int maxMana = 0;
                 try {
-                    dev.aurelium.auraskills.api.user.SkillsUser user = dev.aurelium.auraskills.api.AuraSkillsApi.get().getUser(id);
-                    if (user != null) {
-                        manaActual = (int) user.getMana();
-                        maxMana = (int) user.getMaxMana();
+                    dev.aurelium.auraskills.api.user.SkillsUser userAura = dev.aurelium.auraskills.api.AuraSkillsApi.get().getUser(id);
+                    if (userAura != null) {
+                        manaActual = (int) userAura.getMana();
+                        maxMana = (int) userAura.getMaxMana();
                     }
                 } catch (Exception ignored) {}
 
@@ -176,30 +175,4 @@ public class Main extends JavaPlugin {
     // Getter para tu nuevo gestor por si lo necesitas en otras clases del Core
     public me.tunombre.server.user.UserManager getUserManager() { return userManager; }
 
-    public void darCombateXp(Player player, int cantidad) {
-        UUID uuid = player.getUniqueId();
-        int nivel = combateNiveles.getOrDefault(uuid, 1);
-        int xp = combateXp.getOrDefault(uuid, 0) + cantidad;
-        while (xp >= (nivel * 100)) {
-            xp -= (nivel * 100);
-            nivel++;
-            player.sendTitle("§c§l¡COMBATE NIVEL " + nivel + "!", "§7Tus instintos mejoran...", 10, 70, 20);
-        }
-        combateNiveles.put(uuid, nivel);
-        combateXp.put(uuid, xp);
-        player.sendMessage("§c⚔ +" + cantidad + " XP §8(§7" + xp + "/" + (nivel * 100) + "§8)");
-    }
-
-    public void darNexoXp(Player player, int cantidad) {
-        UUID uuid = player.getUniqueId();
-        int nivel = nexoNiveles.getOrDefault(uuid, 1);
-        int xp = nexoXp.getOrDefault(uuid, 0) + cantidad;
-        while (xp >= (nivel * 100)) {
-            xp -= (nivel * 100);
-            nivel++;
-            player.sendTitle("§e§l¡NEXO NIVEL " + nivel + "!", "§fHas ascendido", 10, 70, 20);
-        }
-        nexoNiveles.put(uuid, nivel);
-        nexoXp.put(uuid, xp);
-    }
 }

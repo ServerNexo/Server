@@ -4,6 +4,8 @@ import dev.aurelium.auraskills.api.AuraSkillsApi;
 import dev.aurelium.auraskills.api.skill.Skills;
 import dev.aurelium.auraskills.api.user.SkillsUser;
 import me.tunombre.server.Main;
+import me.tunombre.server.user.NexoAPI;
+import me.tunombre.server.user.NexoUser;
 import org.bukkit.Bukkit;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -33,9 +35,18 @@ public class PasivasManager {
     }
 
     // ==========================================
-    // 🧠 LECTURA DE NIVELES (AuraSkills)
+    // 🧠 LECTURA DE NIVELES (Híbrido NexoUser / AuraSkills)
     // ==========================================
     public int getNivel(Player p, dev.aurelium.auraskills.api.skill.Skill skill) {
+        // 🟢 ARQUITECTURA LIMPIA: Redirigir Combate, Minería y Agricultura a NexoUser
+        NexoUser nexoUser = NexoAPI.getInstance().getUserLocal(p.getUniqueId());
+        if (nexoUser != null) {
+            if (skill == Skills.FIGHTING) return nexoUser.getCombateNivel();
+            if (skill == Skills.MINING) return nexoUser.getMineriaNivel();
+            if (skill == Skills.FARMING) return nexoUser.getAgriculturaNivel();
+        }
+
+        // Fallback para las habilidades que aún siguen en AuraSkills (Tala, Pesca, etc.)
         try {
             SkillsUser user = AuraSkillsApi.get().getUser(p.getUniqueId());
             if (user != null) return user.getSkillLevel(skill);
@@ -80,7 +91,12 @@ public class PasivasManager {
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 if (getNivel(p, Skills.FARMING) >= 50) {
-                    int energia = plugin.energiaMineria.getOrDefault(p.getUniqueId(), 0);
+
+                    // 🟢 ARQUITECTURA LIMPIA: Energía desde NexoUser
+                    NexoUser user = NexoAPI.getInstance().getUserLocal(p.getUniqueId());
+                    if (user == null) continue;
+
+                    int energia = user.getEnergiaMineria();
                     int costo = calcularCostoEnergia(p, 5); // Aplica descuento si tiene Enchanting 50
 
                     if (energia >= costo) {
@@ -100,7 +116,7 @@ public class PasivasManager {
                             }
                         }
                         if (aplico) {
-                            plugin.energiaMineria.put(p.getUniqueId(), energia - costo);
+                            user.setEnergiaMineria(energia - costo);
                             p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.5f, 2f);
                         }
                     }

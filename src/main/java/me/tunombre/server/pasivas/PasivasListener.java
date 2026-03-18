@@ -2,6 +2,8 @@ package me.tunombre.server.pasivas;
 
 import dev.aurelium.auraskills.api.skill.Skills;
 import me.tunombre.server.Main;
+import me.tunombre.server.user.NexoAPI;
+import me.tunombre.server.user.NexoUser;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -25,7 +27,6 @@ import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
@@ -49,7 +50,8 @@ public class PasivasListener implements Listener {
     public void onCombate(EntityDamageByEntityEvent event) {
         // ATACANTE
         if (event.getDamager() instanceof Player atacante) {
-            int nivel = manager.getNivel(atacante, Skills.FIGHTING);
+            NexoUser user = NexoAPI.getInstance().getUserLocal(atacante.getUniqueId());
+            int nivel = user != null ? user.getCombateNivel() : 1;
 
             // Lvl 25: Ejecutor
             if (nivel >= 25 && event.getEntity() instanceof org.bukkit.entity.LivingEntity victima) {
@@ -75,7 +77,9 @@ public class PasivasListener implements Listener {
                 return;
             }
 
-            int nivel = manager.getNivel(victima, Skills.FIGHTING);
+            NexoUser user = NexoAPI.getInstance().getUserLocal(id);
+            int nivel = user != null ? user.getCombateNivel() : 1;
+
             if (nivel >= 50 && event.getFinalDamage() >= victima.getHealth()) {
                 long ahora = System.currentTimeMillis();
                 long cooldownMilis = 10 * 60 * 1000L; // 10 minutos
@@ -104,7 +108,8 @@ public class PasivasListener implements Listener {
 
             // ⛏️ MINING (Piel de Magma Lvl 25)
             if (event.getCause() == EntityDamageEvent.DamageCause.LAVA || event.getCause() == EntityDamageEvent.DamageCause.FIRE_TICK) {
-                if (manager.getNivel(p, Skills.MINING) >= 25 && p.getInventory().getItemInMainHand().getType().toString().contains("PICKAXE")) {
+                NexoUser user = NexoAPI.getInstance().getUserLocal(p.getUniqueId());
+                if (user != null && user.getMineriaNivel() >= 25 && p.getInventory().getItemInMainHand().getType().toString().contains("PICKAXE")) {
                     event.setCancelled(true);
                 }
             }
@@ -120,26 +125,26 @@ public class PasivasListener implements Listener {
         Block b = event.getBlock();
         String tipo = b.getType().toString();
 
-        // 🪓 WOODCUTTING
+        NexoUser user = NexoAPI.getInstance().getUserLocal(p.getUniqueId());
+        if (user == null) return;
+
+        // 🪓 WOODCUTTING (Aún lee de AuraSkills)
         int nivelTala = manager.getNivel(p, Skills.FORAGING);
         if (nivelTala >= 10 && tipo.contains("LEAVES")) {
             if (Math.random() <= 0.05) {
-                // Toque Natural: Placeholder para tu ítem custom
                 b.getWorld().dropItemNaturally(b.getLocation(), new ItemStack(Material.APPLE));
             }
         }
 
         if (tipo.contains("LOG")) {
             manager.ultimoTroncoRoto.put(p.getUniqueId(), System.currentTimeMillis());
-            // Lvl 50 Furia Leñador lo integrarías aquí para que no consuma energía en tu otro listener
             if (nivelTala >= 50 && Math.random() <= 0.05) {
                 p.playSound(b.getLocation(), Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 1f, 1.5f);
-                // La lógica de instamine y no-energía se conecta con BlockBreakListener
             }
         }
 
         // ⛏️ MINING
-        int nivelMina = manager.getNivel(p, Skills.MINING);
+        int nivelMina = user.getMineriaNivel();
         if (nivelMina >= 50 && tipo.contains("STONE")) {
             if (Math.random() <= 0.01) {
                 b.getWorld().spawnParticle(Particle.EXPLOSION, b.getLocation(), 1);
@@ -154,7 +159,7 @@ public class PasivasListener implements Listener {
         }
 
         // 🌾 FARMING
-        int nivelGranja = manager.getNivel(p, Skills.FARMING);
+        int nivelGranja = user.getAgriculturaNivel();
         if (nivelGranja >= 25 && b.getBlockData() instanceof org.bukkit.block.data.Ageable cultivo) {
             if (cultivo.getAge() == cultivo.getMaximumAge() && Math.random() <= 0.10) {
                 b.getWorld().dropItemNaturally(b.getLocation(), new ItemStack(Material.GOLDEN_CARROT)); // Placeholder ítem custom
@@ -182,7 +187,8 @@ public class PasivasListener implements Listener {
     @EventHandler
     public void onPisadas(PlayerInteractEvent event) {
         if (event.getAction() == Action.PHYSICAL && event.getClickedBlock() != null) {
-            if (event.getClickedBlock().getType() == Material.FARMLAND && manager.getNivel(event.getPlayer(), Skills.FARMING) >= 10) {
+            NexoUser user = NexoAPI.getInstance().getUserLocal(event.getPlayer().getUniqueId());
+            if (event.getClickedBlock().getType() == Material.FARMLAND && user != null && user.getAgriculturaNivel() >= 10) {
                 event.setCancelled(true);
             }
         }
@@ -198,8 +204,12 @@ public class PasivasListener implements Listener {
             int nivel = manager.getNivel(p, Skills.FISHING);
 
             if (nivel >= 10) {
-                int energiaAct = plugin.energiaMineria.getOrDefault(p.getUniqueId(), 100);
-                plugin.energiaMineria.put(p.getUniqueId(), Math.min(energiaAct + 5, 200)); // Límite asumido
+                NexoUser user = NexoAPI.getInstance().getUserLocal(p.getUniqueId());
+                if (user != null) {
+                    int energiaAct = user.getEnergiaMineria();
+                    int maxEnergia = 100 + ((user.getNexoNivel() - 1) * 20) + user.getEnergiaExtraAccesorios();
+                    user.setEnergiaMineria(Math.min(energiaAct + 5, maxEnergia));
+                }
             }
 
             if (nivel >= 25 && event.getCaught() instanceof Item itemEntity && Math.random() <= 0.10) {
@@ -246,7 +256,7 @@ public class PasivasListener implements Listener {
 
     @EventHandler
     public void onBrew(BrewEvent event) {
-        // Asumiendo que podemos verificar si un jugador online inició el stand (requeriría un metadata extra, lo simplificamos a global prob para el bloque)
+        // Asumiendo que podemos verificar si un jugador online inició el stand
         if (Math.random() <= 0.10) {
             for (ItemStack item : event.getContents().getContents()) {
                 if (item != null && item.getType() == Material.POTION) {

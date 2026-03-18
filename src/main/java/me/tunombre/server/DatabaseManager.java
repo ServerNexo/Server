@@ -123,13 +123,13 @@ public class DatabaseManager {
     }
 
     // ==========================================
-    // 👤 GESTIÓN DE JUGADOR (Thread-Safe)
+    // 👤 GESTIÓN DE JUGADOR (Nueva Arquitectura NexoUser)
     // ==========================================
     public void cargarJugador(Player player) {
         if (dataSource == null) return;
 
         String selectSQL = "SELECT * FROM jugadores WHERE uuid = ?";
-        String insertSQL = "INSERT INTO jugadores (uuid, nombre) VALUES (?, ?)"; // Eliminados valores por defecto (la base de datos se encarga de eso)
+        String insertSQL = "INSERT INTO jugadores (uuid, nombre) VALUES (?, ?)";
         UUID uuid = player.getUniqueId();
         String name = player.getName();
 
@@ -140,32 +140,33 @@ public class DatabaseManager {
                     ResultSet rs = psSelect.executeQuery();
 
                     if (rs.next()) {
-                        // Leemos datos en asíncrono
-                        int nN = rs.getInt("nexo_nivel"), nX = rs.getInt("nexo_xp");
-                        int cN = rs.getInt("combate_nivel"), cX = rs.getInt("combate_xp");
-                        int mN = rs.getInt("mineria_nivel"), mX = rs.getInt("mineria_xp");
-                        int aN = rs.getInt("agricultura_nivel"), aX = rs.getInt("agricultura_xp");
+                        // 🟢 ARQUITECTURA: Creamos el objeto NexoUser con los datos de la DB
+                        me.tunombre.server.user.NexoUser user = new me.tunombre.server.user.NexoUser(
+                                uuid, name,
+                                rs.getInt("nexo_nivel"), rs.getInt("nexo_xp"),
+                                rs.getInt("combate_nivel"), rs.getInt("combate_xp"),
+                                rs.getInt("mineria_nivel"), rs.getInt("mineria_xp"),
+                                rs.getInt("agricultura_nivel"), rs.getInt("agricultura_xp")
+                        );
 
-                        // 🔴 FIX: Volvemos al Main Thread para modificar los mapas concurrentes sin crashear el servidor
+                        // 🔴 VOLVEMOS AL MAIN THREAD para meterlo en la caché de forma segura
                         Bukkit.getScheduler().runTask(plugin, () -> {
-                            plugin.nexoNiveles.put(uuid, nN); plugin.nexoXp.put(uuid, nX);
-                            plugin.combateNiveles.put(uuid, cN); plugin.combateXp.put(uuid, cX);
-                            plugin.mineriaNiveles.put(uuid, mN); plugin.mineriaXp.put(uuid, mX);
-                            plugin.agriculturaNiveles.put(uuid, aN); plugin.agriculturaXp.put(uuid, aX);
+                            plugin.getUserManager().addUserToCache(user);
                         });
+
                     } else {
+                        // Jugador Nuevo
                         try (PreparedStatement psInsert = conn.prepareStatement(insertSQL)) {
                             psInsert.setString(1, uuid.toString());
                             psInsert.setString(2, name);
                             psInsert.executeUpdate();
 
-                            // 🔴 FIX: Volvemos al Main Thread
+                            // 🔴 VOLVEMOS AL MAIN THREAD
                             Bukkit.getScheduler().runTask(plugin, () -> {
-                                plugin.nexoNiveles.put(uuid, 1); plugin.nexoXp.put(uuid, 0);
-                                plugin.combateNiveles.put(uuid, 1); plugin.combateXp.put(uuid, 0);
-                                plugin.mineriaNiveles.put(uuid, 1); plugin.mineriaXp.put(uuid, 0);
-                                plugin.agriculturaNiveles.put(uuid, 1); plugin.agriculturaXp.put(uuid, 0);
-
+                                me.tunombre.server.user.NexoUser newUser = new me.tunombre.server.user.NexoUser(
+                                        uuid, name, 1, 0, 1, 0, 1, 0, 1, 0
+                                );
+                                plugin.getUserManager().addUserToCache(newUser);
                                 plugin.getLogger().info("¡Nuevo jugador RPG registrado: " + name);
                             });
                         }
@@ -179,16 +180,11 @@ public class DatabaseManager {
 
     public void guardarJugador(Player player) {
         if (dataSource == null) return;
-
         UUID uuid = player.getUniqueId();
-        if (!plugin.nexoNiveles.containsKey(uuid)) return;
 
-        // 🔴 FIX: Leemos los datos en el Main Thread ANTES de mandarlos al hilo asíncrono
-        int nNivel = plugin.nexoNiveles.get(uuid); int nXp = plugin.nexoXp.get(uuid);
-        int cNivel = plugin.combateNiveles.get(uuid); int cXp = plugin.combateXp.get(uuid);
-        int mNivel = plugin.mineriaNiveles.get(uuid); int mXp = plugin.mineriaXp.get(uuid);
-        int aNivel = plugin.agriculturaNiveles.get(uuid); int aXp = plugin.agriculturaXp.get(uuid);
-        String nombre = player.getName();
+        // 🟢 ARQUITECTURA: Pedimos el usuario a la caché
+        me.tunombre.server.user.NexoUser user = plugin.getUserManager().getUserOrNull(uuid);
+        if (user == null) return; // Si no está en caché, no hay nada que guardar
 
         String updateSQL = """
                 UPDATE jugadores SET nexo_nivel = ?, nexo_xp = ?, nombre = ?, 
@@ -200,24 +196,20 @@ public class DatabaseManager {
             try (Connection conn = getConnection();
                  PreparedStatement ps = conn.prepareStatement(updateSQL)) {
 
-                ps.setInt(1, nNivel); ps.setInt(2, nXp); ps.setString(3, nombre);
-                ps.setInt(4, cNivel); ps.setInt(5, cXp); ps.setInt(6, mNivel);
-                ps.setInt(7, mXp); ps.setInt(8, aNivel); ps.setInt(9, aXp);
+                ps.setInt(1, user.getNexoNivel()); ps.setInt(2, user.getNexoXp()); ps.setString(3, user.getNombre());
+                ps.setInt(4, user.getCombateNivel()); ps.setInt(5, user.getCombateXp()); ps.setInt(6, user.getMineriaNivel());
+                ps.setInt(7, user.getMineriaXp()); ps.setInt(8, user.getAgriculturaNivel()); ps.setInt(9, user.getAgriculturaXp());
                 ps.setString(10, uuid.toString());
 
-                ps.executeUpdate(); // Guardamos en la base de datos primero
+                ps.executeUpdate();
 
-                // 🔴 FIX ANTI DATA LOSS: Solo borramos los datos de la RAM si se guardó con éxito en Supabase
+                // 🔴 ANTI DATA LOSS: Solo borramos de la RAM si se guardó con éxito
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    plugin.nexoNiveles.remove(uuid); plugin.nexoXp.remove(uuid);
-                    plugin.combateNiveles.remove(uuid); plugin.combateXp.remove(uuid);
-                    plugin.mineriaNiveles.remove(uuid); plugin.mineriaXp.remove(uuid);
-                    plugin.agriculturaNiveles.remove(uuid); plugin.agriculturaXp.remove(uuid);
-                    plugin.energiaMineria.remove(uuid);
+                    plugin.getUserManager().removeUserFromCache(uuid);
                 });
 
             } catch (SQLException e) {
-                plugin.getLogger().severe("Fallo grave al guardar a " + nombre + ". Sus datos se mantuvieron en memoria: " + e.getMessage());
+                plugin.getLogger().severe("Fallo grave al guardar a " + user.getNombre() + ". Datos preservados en memoria: " + e.getMessage());
             }
         });
     }
@@ -228,7 +220,9 @@ public class DatabaseManager {
     public void guardarJugadorSync(Player player) {
         if (dataSource == null) return;
         UUID uuid = player.getUniqueId();
-        if (!plugin.nexoNiveles.containsKey(uuid)) return;
+
+        me.tunombre.server.user.NexoUser user = plugin.getUserManager().getUserOrNull(uuid);
+        if (user == null) return;
 
         String updateSQL = """
                 UPDATE jugadores SET nexo_nivel = ?, nexo_xp = ?, nombre = ?, 
@@ -239,15 +233,9 @@ public class DatabaseManager {
         try (Connection conn = getConnection();
              PreparedStatement ps = conn.prepareStatement(updateSQL)) {
 
-            ps.setInt(1, plugin.nexoNiveles.get(uuid));
-            ps.setInt(2, plugin.nexoXp.get(uuid));
-            ps.setString(3, player.getName());
-            ps.setInt(4, plugin.combateNiveles.get(uuid));
-            ps.setInt(5, plugin.combateXp.get(uuid));
-            ps.setInt(6, plugin.mineriaNiveles.get(uuid));
-            ps.setInt(7, plugin.mineriaXp.get(uuid));
-            ps.setInt(8, plugin.agriculturaNiveles.get(uuid));
-            ps.setInt(9, plugin.agriculturaXp.get(uuid));
+            ps.setInt(1, user.getNexoNivel()); ps.setInt(2, user.getNexoXp()); ps.setString(3, user.getNombre());
+            ps.setInt(4, user.getCombateNivel()); ps.setInt(5, user.getCombateXp()); ps.setInt(6, user.getMineriaNivel());
+            ps.setInt(7, user.getMineriaXp()); ps.setInt(8, user.getAgriculturaNivel()); ps.setInt(9, user.getAgriculturaXp());
             ps.setString(10, uuid.toString());
 
             ps.executeUpdate();

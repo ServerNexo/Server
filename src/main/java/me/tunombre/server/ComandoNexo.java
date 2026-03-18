@@ -1,5 +1,7 @@
 package me.tunombre.server;
 
+import me.tunombre.server.user.NexoAPI;
+import me.tunombre.server.user.NexoUser;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -25,29 +27,63 @@ public class ComandoNexo implements CommandExecutor {
 
         if (args.length == 3) {
             Player objetivo = Bukkit.getPlayer(args[1]);
-            if (objetivo == null) return true;
+            if (objetivo == null) {
+                sender.sendMessage("§cEl jugador no está conectado.");
+                return true;
+            }
 
             try {
                 int cantidad = Integer.parseInt(args[2]);
 
+                // 🟢 ARQUITECTURA LIMPIA: Obtenemos los datos del jugador desde la API local
+                NexoUser user = NexoAPI.getInstance().getUserLocal(objetivo.getUniqueId());
+                if (user == null) {
+                    sender.sendMessage("§cLos datos del jugador aún están cargando...");
+                    return true;
+                }
+
                 // 1. Comando de Nexo XP Global
                 if (args[0].equalsIgnoreCase("darxp")) {
-                    plugin.darNexoXp(objetivo, cantidad);
+                    int nivelActual = user.getNexoNivel();
+                    int xpActual = user.getNexoXp() + cantidad;
+
+                    while (xpActual >= (nivelActual * 100)) {
+                        xpActual -= (nivelActual * 100);
+                        nivelActual++;
+                        objetivo.sendTitle("§e§l¡NEXO NIVEL " + nivelActual + "!", "§fHas ascendido", 10, 70, 20);
+                    }
+
+                    user.setNexoNivel(nivelActual);
+                    user.setNexoXp(xpActual);
+
                     if (sender instanceof Player) sender.sendMessage("§aHas dado " + cantidad + " Nexo XP a " + objetivo.getName());
                 }
+
                 // 2. Comando de Combate XP
                 else if (args[0].equalsIgnoreCase("darcombatexp")) {
-                    plugin.darCombateXp(objetivo, cantidad);
+                    int nivelActual = user.getCombateNivel();
+                    int xpActual = user.getCombateXp() + cantidad;
+
+                    while (xpActual >= (nivelActual * 100)) {
+                        xpActual -= (nivelActual * 100);
+                        nivelActual++;
+                        objetivo.sendTitle("§c§l¡COMBATE NIVEL " + nivelActual + "!", "§7Tus instintos mejoran...", 10, 70, 20);
+                    }
+
+                    user.setCombateNivel(nivelActual);
+                    user.setCombateXp(xpActual);
+
+                    objetivo.sendMessage("§c⚔ +" + cantidad + " XP §8(§7" + xpActual + "/" + (nivelActual * 100) + "§8)");
                     if (sender instanceof Player) sender.sendMessage("§cHas dado " + cantidad + " Combate XP a " + objetivo.getName());
                 }
 
             } catch (NumberFormatException e) {
-                if (sender instanceof Player) sender.sendMessage("§cLa cantidad debe ser un número válido.");
+                sender.sendMessage("§cLa cantidad debe ser un número válido.");
             }
             return true;
         }
 
-        if (sender instanceof Player) sender.sendMessage("§cUso correcto: /nexo <darxp|darcombatexp> <jugador> <cantidad>");
+        sender.sendMessage("§cUso correcto: /nexocore <darxp|darcombatexp> <jugador> <cantidad>");
         return true;
     }
 }

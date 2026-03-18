@@ -1,4 +1,4 @@
-package me.tunombre.server.minigames;
+package me.tunombre.server.artefactos;
 
 import me.tunombre.server.Main;
 import me.tunombre.server.user.NexoAPI;
@@ -46,7 +46,7 @@ public class FishingHookManager implements Listener {
 
                     // 🟢 ARQUITECTURA LIMPIA: Conectamos con el ecosistema de Energía a través del NexoUser
                     NexoUser user = NexoAPI.getInstance().getUserLocal(p.getUniqueId());
-
+                    
                     if (user != null) {
                         int energiaAct = user.getEnergiaMineria();
                         // Calculamos la energía máxima incluyendo el nivel y los accesorios

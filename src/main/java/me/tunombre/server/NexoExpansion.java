@@ -1,6 +1,8 @@
 package me.tunombre.server;
 
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
+import me.tunombre.server.user.NexoAPI;
+import me.tunombre.server.user.NexoUser;
 import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.NotNull;
 import java.util.UUID;
@@ -38,17 +40,28 @@ public class NexoExpansion extends PlaceholderExpansion {
         if (player == null) return "";
         UUID uuid = player.getUniqueId();
 
+        // 🟢 ARQUITECTURA LIMPIA: Pedimos el usuario a la caché
+        NexoUser user = NexoAPI.getInstance().getUserLocal(uuid);
+
+        // Si el jugador está desconectado o sus datos aún no cargan, damos valores por defecto
+        if (user == null) {
+            if (params.equalsIgnoreCase("nivel") || params.endsWith("_nivel")) return "1";
+            if (params.equalsIgnoreCase("xp")) return "0";
+            if (params.equalsIgnoreCase("xprequerida")) return "100";
+            return "";
+        }
+
         // ==========================================
         // 1. VARIABLES GLOBALES (NEXO)
         // ==========================================
         if (params.equalsIgnoreCase("nivel")) {
-            return String.valueOf(plugin.nexoNiveles.getOrDefault(uuid, 1));
+            return String.valueOf(user.getNexoNivel());
         }
         if (params.equalsIgnoreCase("xp")) {
-            return String.valueOf(plugin.nexoXp.getOrDefault(uuid, 0));
+            return String.valueOf(user.getNexoXp());
         }
         if (params.equalsIgnoreCase("xprequerida")) {
-            int nivelActual = plugin.nexoNiveles.getOrDefault(uuid, 1);
+            int nivelActual = user.getNexoNivel();
             return String.valueOf(nivelActual * 100);
         }
 
@@ -56,13 +69,13 @@ public class NexoExpansion extends PlaceholderExpansion {
         // 2. VARIABLES DE PROFESIÓN (NUEVO)
         // ==========================================
         if (params.equalsIgnoreCase("mineria_nivel")) {
-            return String.valueOf(plugin.mineriaNiveles.getOrDefault(uuid, 1));
+            return String.valueOf(user.getMineriaNivel());
         }
         if (params.equalsIgnoreCase("combate_nivel")) {
-            return String.valueOf(plugin.combateNiveles.getOrDefault(uuid, 1));
+            return String.valueOf(user.getCombateNivel());
         }
         if (params.equalsIgnoreCase("agricultura_nivel")) {
-            return String.valueOf(plugin.agriculturaNiveles.getOrDefault(uuid, 1));
+            return String.valueOf(user.getAgriculturaNivel());
         }
 
         return null;
