@@ -9,7 +9,6 @@ import java.util.UUID;
 public class Main extends JavaPlugin {
 
     private DatabaseManager databaseManager;
-    private FileManager fileManager;
 
     private me.tunombre.server.user.UserManager userManager;
     private me.tunombre.server.user.NexoAPI nexoAPI;
@@ -20,7 +19,8 @@ public class Main extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        fileManager = new FileManager(this);
+
+        // 🟢 Adiós FileManager, ahora solo nos conectamos a la BD
         databaseManager = new DatabaseManager(this);
         databaseManager.conectar();
 
@@ -32,15 +32,11 @@ public class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new me.tunombre.server.colecciones.ColeccionesListener(this), this);
         new me.tunombre.server.colecciones.FlushTask(databaseManager.getDataSource()).runTaskTimerAsynchronously(this, 12000L, 12000L);
 
-        if (getCommand("test") != null) getCommand("test").setExecutor(new ComandoTest(this));
+        // 🟢 Solo conservamos el comando del Core
         if (getCommand("nexocore") != null) getCommand("nexocore").setExecutor(new ComandoNexo(this));
 
-        // Listeners generales que aún están en el Core
-        getServer().getPluginManager().registerEvents(new DamageListener(this), this);
+        // 🟢 Listeners generales (¡El único que sobrevive aquí es el de la Base de Datos!)
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
-        getServer().getPluginManager().registerEvents(new InteractListener(this), this);
-        getServer().getPluginManager().registerEvents(new BlockBreakListener(this), this);
-        getServer().getPluginManager().registerEvents(new FishingListener(this), this);
 
         // Pasivas y PvP (Los moveremos luego si decides aislar la progresión)
         me.tunombre.server.pasivas.PasivasManager pasivasManager = new me.tunombre.server.pasivas.PasivasManager(this);
@@ -117,11 +113,9 @@ public class Main extends JavaPlugin {
         }
 
         if (databaseManager != null) databaseManager.desconectar();
-        BlockBreakListener.restaurarBloquesRotos();
     }
 
     public me.tunombre.server.colecciones.ColeccionesConfig getColeccionesConfig() { return coleccionesConfig; }
     public DatabaseManager getDatabaseManager() { return databaseManager; }
-    public FileManager getFileManager() { return fileManager; }
     public me.tunombre.server.user.UserManager getUserManager() { return userManager; }
 }
